@@ -19,26 +19,34 @@ async function addRowSheet(auth, spreadsheetId, values) {
         const response = (await sheets.spreadsheets.values.append(request)).data;
         return response;
     } catch (error) {
-        console.error(error);
+        console.error('Error en addRowSheet:', error);
     }
 }
 
 const appendToSheet = async (data) => {
     try {
+        console.log('GOOGLE_CREDENTIALS_JSON existe:', !!process.env.GOOGLE_CREDENTIALS_JSON);
+
         const auth = new google.auth.GoogleAuth({
-            keyFile: path.join(process.cwd(), 'src/credentials', 'credentials.json'),
+            credentials: process.env.GOOGLE_CREDENTIALS_JSON
+                ? JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON)
+                : undefined,
+            keyFile: process.env.GOOGLE_CREDENTIALS_JSON
+                ? undefined
+                : path.join(process.cwd(), 'src/credentials', 'credentials.json'),
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
         const authClient = await auth.getClient();
         const spreadsheetId = '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ';
 
-        console.log('Intentando guardar:', data); // ← agrega esto
+        console.log('Intentando guardar:', data);
         const result = await addRowSheet(authClient, spreadsheetId, data);
-        console.log('Resultado:', result); // ← y esto
+        console.log('Resultado:', result);
+
         return 'Datos agregados correctamente';
     } catch (error) {
-        console.error('Error en appendToSheet:', error); // ← más detalle
+        console.error('Error en appendToSheet:', error);
     }
 }
 
