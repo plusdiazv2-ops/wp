@@ -1,15 +1,21 @@
-import path from 'path';
 import { google } from 'googleapis';
 
 const sheets = google.sheets('v4');
 
 const getAuthClient = async () => {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: path.join(process.cwd(), 'src/credentials', 'credentials.json'),
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
+  try {
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
 
-  return await auth.getClient();
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    return await auth.getClient();
+  } catch (error) {
+    console.error('Error cargando credenciales de Google:', error);
+    throw error;
+  }
 };
 
 const SPREADSHEET_ID = '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ';
@@ -18,7 +24,7 @@ const SPREADSHEET_ID = '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ';
 async function addRowSheet(auth, values) {
   const request = {
     spreadsheetId: SPREADSHEET_ID,
-    range: "'barber'!A:G",
+    range: "'barber'!A:J",
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     resource: {
@@ -59,7 +65,7 @@ async function getSheetData(auth) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: "'barber'!A:G",
+      range: "'barber'!A:J",
       auth,
     });
 
@@ -80,11 +86,13 @@ export const isSlotAvailable = async (barber, date, time) => {
       const savedDate = (row[0] || '').toLowerCase().trim();
       const savedTime = (row[2] || '').toLowerCase().trim();
       const savedBarber = (row[5] || '').toLowerCase().trim();
+      const savedStatus = (row[6] || '').toLowerCase().trim();
 
       return (
         savedBarber === barber.toLowerCase().trim() &&
         savedDate === date.toLowerCase().trim() &&
-        savedTime === time.toLowerCase().trim()
+        savedTime === time.toLowerCase().trim() &&
+        savedStatus === 'confirmado'
       );
     });
 
@@ -198,10 +206,12 @@ export const getBookedSlots = async (barber, date) => {
       .filter(row => {
         const savedDate = (row[0] || '').toLowerCase().trim();
         const savedBarber = (row[5] || '').toLowerCase().trim();
+        const savedStatus = (row[6] || '').toLowerCase().trim();
 
         return (
           savedBarber === barber.toLowerCase().trim() &&
-          savedDate === date.toLowerCase().trim()
+          savedDate === date.toLowerCase().trim() &&
+          savedStatus === 'confirmado'
         );
       })
       .map(row => (row[2] || '').toLowerCase().trim());
@@ -241,12 +251,11 @@ export const getUpcomingAppointmentByPhone = async (phone) => {
     const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Saltamos encabezados: index 0
     const appointments = rows
       .slice(1)
       .map((row, index) => ({
         row,
-        rowNumber: index + 2 // porque slice(1) empieza en la fila 2 real de Sheets
+        rowNumber: index + 2
       }))
       .filter(({ row }) => {
         const savedPhone = (row[4] || '').trim();
