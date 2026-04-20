@@ -284,6 +284,14 @@ class MessageHandler {
     ];
 
     await appendToSheet(userData);
+    console.log("Turno guardado. Enviando notificación al barbero...", appointment);
+
+    await this.notifyBarberNewAppointment({
+      ...appointment,
+      phone: to
+    });
+
+    console.log("Notificación al barbero enviada.");
 
     return `✅ Turno agendado correctamente:
 
