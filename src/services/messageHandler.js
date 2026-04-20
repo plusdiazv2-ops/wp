@@ -16,8 +16,8 @@ class MessageHandler {
     this.barbers = ["Bolon", "Julian"];
     this.errorCount = {};
     this.barberPhones = {
-      Bolon: "573125911132",
-      Julian: "5700000000"
+      Bolon: "573137127100",
+      Julian: "573125911132"
     };
   }
 
@@ -265,6 +265,11 @@ class MessageHandler {
     delete this.appointmentState[to];
     this.resetError(to);
 
+    const appointmentDateTime = this.buildAppointmentDateTime(
+      appointment.date,
+      appointment.time
+    );
+
     const userData = [
       appointment.date,
       appointment.displayDate,
@@ -273,32 +278,26 @@ class MessageHandler {
       to,
       appointment.barber,
       "Confirmado",
-      new Date().toISOString()
+      new Date().toISOString(),
+      appointmentDateTime,
+      "No"
     ];
 
     await appendToSheet(userData);
 
-    await this.notifyBarberNewAppointment({
-      name: appointment.name,
-      phone: to,
-      barber: appointment.barber,
-      displayDate: appointment.displayDate,
-      time: appointment.time
-    });
-
     return `✅ Turno agendado correctamente:
 
-👤 ${appointment.name}
-💈 ${appointment.barber}
-📅 ${appointment.displayDate}
-⏰ ${appointment.time}
+  👤 ${appointment.name}
+  💈 ${appointment.barber}
+  📅 ${appointment.displayDate}
+  ⏰ ${appointment.time}
 
-📌 Recuerda llegar 5 minutos antes.
+  📌 Recuerda llegar 5 minutos antes.
 
-Si necesitas cancelar tu turno:
-👉 Escribe *menu* → Cancelar Turno
+  Si necesitas cancelar tu turno:
+  👉 Escribe *menu* → Cancelar Turno
 
-¡Te esperamos! 💈`;
+  ¡Te esperamos! 💈`;
   }
 
   async handleAppointmentFlow(to, message) {
@@ -748,6 +747,24 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 📞 Teléfono: ${appointment.phone || ''}`;
 
     await whatsappService.sendMessage(barberPhone, message);
+  }
+
+  buildAppointmentDateTime(date, time) {
+    const match = time.toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
+
+    if (!match) return null;
+
+    let hour = parseInt(match[1], 10);
+    const minutes = match[2] ? parseInt(match[2], 10) : 0;
+    const period = match[3];
+
+    if (period === 'pm' && hour !== 12) hour += 12;
+    if (period === 'am' && hour === 12) hour = 0;
+
+    const hh = String(hour).padStart(2, '0');
+    const mm = String(minutes).padStart(2, '0');
+
+    return `${date} ${hh}:${mm}:00`;
   }
 }
 

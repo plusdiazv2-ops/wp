@@ -1,15 +1,25 @@
 import { google } from 'googleapis';
+import path from 'path';
 
 const sheets = google.sheets('v4');
 
 const getAuthClient = async () => {
   try {
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+    let auth;
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    if (process.env.GOOGLE_CREDENTIALS_JSON) {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
+      auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    } else {
+      auth = new google.auth.GoogleAuth({
+        keyFile: path.join(process.cwd(), 'src/credentials', 'credentials.json'),
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    }
 
     return await auth.getClient();
   } catch (error) {
@@ -346,6 +356,94 @@ export const countUserAppointmentsSameDay = async (phone, date) => {
   } catch (error) {
     console.error('Error contando citas del usuario en el mismo día:', error);
     return 0;
+  }
+};
+
+export const getAppointmentsToRemind = async () => {
+  try {
+    const authClient = await getAuthClient();
+    const rows = await getSheetData(authClient);
+
+    if (!rows || rows.length < 2) return [];
+
+    const now = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
+    );
+
+    const appointments = rows
+      .slice(1)
+      .map((row, index) => ({
+        row,
+        rowNumber: index + 2
+      }))
+      .filter(({ row }) => {
+        const status = (row[6] || '').toLowerCase().trim();
+        const reminderSent = (row[9] || '').toLowerCase().trim();
+        const appointmentDateTime = (row[8] || '').trim();
+
+        if (status !== 'confirmado') return false;
+        if (reminderSent === 'sí' || reminderSent === 'si') return false;
+        if (!appointmentDateTime) return false;
+
+        // 🔥 Parse manual correcto (soluciona bug del 0:30:00)
+        const [datePart, timePart] = appointmentDateTime.split(' ');
+
+        if (!datePart || !timePart) return false;
+
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute, second] = timePart.split(':').map(Number);
+
+        const appointmentDate = new Date(
+          year,
+          month - 1,
+          day,
+          hour,
+          minute,
+          second || 0
+        );
+
+        const diffMs = appointmentDate.getTime() - now.getTime();
+        const diffMinutes = diffMs / (1000 * 60);
+
+        // 🔥 RANGO PARA PRUEBA (luego lo ajustamos a 1 hora real)
+        return diffMinutes >= 55 && diffMinutes <= 65;
+      })
+      .map(({ row, rowNumber }) => ({
+        rowNumber,
+        date: row[0] || '',
+        displayDate: row[1] || '',
+        time: row[2] || '',
+        name: row[3] || '',
+        phone: row[4] || '',
+        barber: row[5] || '',
+      }));
+
+    return appointments;
+
+  } catch (error) {
+    console.error('Error obteniendo citas para recordatorio:', error);
+    return [];
+  }
+};
+
+export const markReminderAsSent = async (rowNumber) => {
+  try {
+    const authClient = await getAuthClient();
+
+    const response = await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'barber'!J${rowNumber}`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [['Sí']],
+      },
+      auth: authClient,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error marcando recordatorio como enviado:', error);
+    return null;
   }
 };
 

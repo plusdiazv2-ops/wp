@@ -111,8 +111,31 @@ class WhatsAppService {
 
     await sendToWhatsApp(data);
   }
+
+  async sendTemplate(to, templateName, variables = []) {
+    const data = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: {
+          code: 'es_CO',
+        },
+        components: [
+          {
+            type: 'body',
+            parameters: variables.map(value => ({
+              type: 'text',
+              text: value,
+            })),
+          },
+        ],
+      },
+    };
+
+    await sendToWhatsApp(data);
+  }
 }
-
-
 
 export default new WhatsAppService();
