@@ -376,7 +376,7 @@ export const getAppointmentsToRemind = async () => {
         row,
         rowNumber: index + 2
       }))
-      .filter(({ row }) => {
+      .filter(({ row, rowNumber }) => {
         const status = (row[6] || '').toLowerCase().trim();
         const reminderSent = (row[9] || '').toLowerCase().trim();
         const appointmentDateTime = (row[8] || '').trim();
@@ -385,12 +385,20 @@ export const getAppointmentsToRemind = async () => {
         if (reminderSent === 'sí' || reminderSent === 'si') return false;
         if (!appointmentDateTime) return false;
 
-        // 🔥 Parse manual correcto (soluciona bug del 0:30:00)
         const [datePart, timePart] = appointmentDateTime.split(' ');
-
         if (!datePart || !timePart) return false;
 
-        const [year, month, day] = datePart.split('-').map(Number);
+        let year, month, day;
+
+        if (datePart.includes('-')) {
+          [year, month, day] = datePart.split('-').map(Number);
+        } else if (datePart.includes('/')) {
+          [day, month, year] = datePart.split('/').map(Number);
+        } else {
+          console.log(`Fila ${rowNumber} descartada: formato de fecha no válido -> ${appointmentDateTime}`);
+          return false;
+        }
+
         const [hour, minute, second] = timePart.split(':').map(Number);
 
         const appointmentDate = new Date(
@@ -402,10 +410,16 @@ export const getAppointmentsToRemind = async () => {
           second || 0
         );
 
+        if (isNaN(appointmentDate.getTime())) {
+          console.log(`Fila ${rowNumber} descartada: fecha inválida -> ${appointmentDateTime}`);
+          return false;
+        }
+
         const diffMs = appointmentDate.getTime() - now.getTime();
         const diffMinutes = diffMs / (1000 * 60);
 
-        // 🔥 RANGO PARA PRUEBA (luego lo ajustamos a 1 hora real)
+        console.log(`Fila ${rowNumber}: ${appointmentDateTime} | faltan ${diffMinutes.toFixed(2)} min`);
+
         return diffMinutes >= 55 && diffMinutes <= 65;
       })
       .map(({ row, rowNumber }) => ({
