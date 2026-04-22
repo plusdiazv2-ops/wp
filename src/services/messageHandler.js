@@ -624,10 +624,10 @@ class MessageHandler {
   async sendLocation(to) {
     await whatsappService.sendLocationMessage(
       to,
-      5.087854,
-      -75.488756,
-      'Exclusive Barber',
-      'Manizales'
+      5.087832111878063,
+      -75.48875195270072,
+      'Exclusive Barber 💈',
+      'Glorieta del Barrio San Sebastián, Manizales, Caldas\n📞 3146926477'
     );
   }
 
@@ -705,21 +705,22 @@ class MessageHandler {
   async sendLocationAndContact(to) {
     await whatsappService.sendLocationMessage(
       to,
-      5.087854,
-      -75.488756,
-      'Exclusive Barber',
-      'Manizales'
+      5.087832111878063,
+      -75.48875195270072,
+      'Exclusive Barber 💈',
+      'Glorieta del Barrio San Sebastián, Manizales, Caldas'
     );
 
     await whatsappService.sendMessage(
       to,
-      `📍 Exclusive Barber
-Manizales
+      `📍 Exclusive Barber 💈
+  Glorieta del Barrio San Sebastián
+  Manizales, Caldas
 
-📞 Contacto: +57XXXXXXXXXX
-🕒 Horario: Lunes a sábado de 8:00am a 5:00pm
+  📞 Contacto: +57 3146926477
+  🕒 Horario: Lunes a sábado de 8:00am a 5:00pm
 
-Si necesitas ayuda con tu turno, puedes escribirnos o llamarnos.`
+  Si necesitas ayuda con tu turno, puedes escribirnos o llamarnos.`
     );
   }
 
