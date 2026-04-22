@@ -718,7 +718,6 @@ class MessageHandler {
   Manizales, Caldas
 
   📞 Contacto: +57 3146926477
-  🕒 Horario: Lunes a sábado de 8:00am a 5:00pm
 
   Si necesitas ayuda con tu turno, puedes escribirnos o llamarnos.`
     );
