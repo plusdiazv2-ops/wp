@@ -162,16 +162,19 @@ class MessageHandler {
 
   async sendWelcomeMessage(to, messageId, senderInfo) {
     const name = this.getSenderName(senderInfo);
-    const welcomeMessage = `Hola ${name}, Bienvenido a Exclusive Barber. ¿En qué te puedo ayudar?`;
+    const welcomeMessage = `👋 Hola ${name}, bienvenido a *Exclusive Barber* 💈
+
+    Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`;
+    
     await whatsappService.sendMessage(to, welcomeMessage, messageId);
   }
 
   async sendWelcomeMenu(to) {
     const menuMessage = "Elige una opción";
     const buttons = [
-      { type: 'reply', reply: { id: '1', title: 'Agendar Turno' } },
-      { type: 'reply', reply: { id: '2', title: 'Cancelar Turno' } },
-      { type: 'reply', reply: { id: '3', title: 'Ubicación y Contacto' } },
+      { type: 'reply', reply: { id: '1', title: '📅 Agendar turno' } },
+      { type: 'reply', reply: { id: '2', title: '❌ Cancelar turno' } },
+      { type: 'reply', reply: { id: '3', title: '📍 Ubicación' } },
     ];
 
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
@@ -210,7 +213,17 @@ class MessageHandler {
           lastActivity: Date.now()
         };
 
-        const message = `📅 Tu próxima cita es:\n\n👤 ${appointment.name}\n💈 ${appointment.barber}\n📅 ${appointment.displayDate}\n⏰ ${appointment.time}\n\nResponde:\n1. Sí, cancelar\n2. No`;
+        const message = `📋 Esta es tu próxima cita:
+
+        👤 *Cliente:* ${appointment.name}
+        💈 *Barbero:* ${appointment.barber}
+        📅 *Fecha:* ${appointment.displayDate}
+        ⏰ *Hora:* ${appointment.time}
+
+        ¿Deseas cancelarla?
+
+        1️⃣ Sí, cancelar
+        2️⃣ No`;
 
         await whatsappService.sendMessage(to, message);
         return;
@@ -293,19 +306,19 @@ class MessageHandler {
 
     console.log("Notificación al barbero enviada.");
 
-    return `✅ Turno agendado correctamente:
+    return `✅ *¡Turno confirmado!*
 
-  👤 ${appointment.name}
-  💈 ${appointment.barber}
-  📅 ${appointment.displayDate}
-  ⏰ ${appointment.time}
+    👤 *Nombre:* ${appointment.name}
+    💈 *Barbero:* ${appointment.barber}
+    📅 *Fecha:* ${appointment.displayDate}
+    ⏰ *Hora:* ${appointment.time}
 
-  📌 Recuerda llegar 5 minutos antes.
+    📌 Recuerda llegar 5 minutos antes de tu cita.
 
-  Si necesitas cancelar tu turno:
-  👉 Escribe *menu* → Cancelar Turno
+    Si necesitas cancelar tu turno:
+    👉 Escribe *menu* y selecciona *Cancelar turno*.
 
-  ¡Te esperamos! 💈`;
+    ¡Te esperamos en *Exclusive Barber* 💈🔥`;
   }
 
   async handleAppointmentFlow(to, message) {
@@ -368,17 +381,17 @@ class MessageHandler {
         const nextDates = await this.generateNextAvailableDates(state.barber);
         state.availableDates = nextDates;
 
-        let dateMessage = `Perfecto ${state.name}. 💈 Has elegido a *${state.barber}*.\n\n📅 Selecciona una fecha:\n\n`;
+        let dateMessage = `✅ Perfecto, *${state.name}*.\nHas elegido a *${state.barber}* 💈\n\n📅 Selecciona una fecha disponible:\n\n`;
 
         nextDates.forEach((d, index) => {
-          dateMessage += `${index + 1}. ${d.label}`;
+          dateMessage += `${index + 1}️⃣ ${d.label}`;
           if (!d.hasAvailability) {
-            dateMessage += ` (sin turnos disponibles)`;
+            dateMessage += ` ❌`;
           }
           dateMessage += `\n`;
         });
 
-        dateMessage += `\n✍️ Responde solo con el número de la fecha que deseas.\nEjemplo: 1`;
+        dateMessage += `\n✍️ Responde solo con el número de la fecha que deseas.`;
 
         await whatsappService.sendMessage(to, dateMessage);
         return;
@@ -460,13 +473,13 @@ class MessageHandler {
         state.availableSlots = availableSlots;
         state.step = 'time';
 
-        let text = `🕐 Horarios disponibles con *${state.barber}* para ${state.displayDate}:\n\n`;
+        let text = `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:\n\n`;
 
         availableSlots.forEach((slot, index) => {
-          text += `${index + 1}. ${slot}\n`;
+          text += `${index + 1}️⃣ ${slot}\n`;
         });
 
-        text += `\n✍️ Responde solo con el número de la hora que deseas.\nEjemplo: 1`;
+        text += `\n✍️ Responde solo con el número del horario que prefieras.`;
 
         await whatsappService.sendMessage(to, text);
         return;
@@ -515,18 +528,19 @@ class MessageHandler {
 
         const finalTime = state.availableSlots[selectedTimeIndex];
 
-        // VALIDACIÓN DE MÁXIMO 2 TURNOS POR DÍA
-        // DEJADA COMENTADA MIENTRAS HACES PRUEBAS
+        // 🔒 VALIDACIÓN: máximo 2 turnos por día
+        const appointmentsCount = await countUserAppointmentsSameDay(to, state.date);
 
-        // const appointmentsCount = await countUserAppointmentsSameDay(to, state.date);
+        if (appointmentsCount >= 2) {
+          await whatsappService.sendMessage(
+            to,
+            "❌ Ya tienes 2 turnos agendados para ese día.\n\nSi necesitas más reservas o presentas algún inconveniente, comunícate directamente con la barbería para ayudarte."
+          );
 
-        // if (appointmentsCount >= 2) {
-        //   await whatsappService.sendMessage(
-        //     to,
-        //     "❌ Ya tienes 2 turnos agendados para ese día.\n\nSi necesitas más reservas o presentas algún inconveniente, comunícate directamente con la barbería para ayudarte."
-        //   );
-        //   return;
-        // }
+          // 🔁 Reiniciar flujo para evitar que quede colgado
+          delete this.appointmentState[to];
+          return;
+        }
 
         const isAvailable = await checkAvailability(state.barber, state.date, finalTime);
 
@@ -573,7 +587,13 @@ class MessageHandler {
 
         await whatsappService.sendMessage(
           to,
-          `✅ Tu turno fue cancelado correctamente.\n\n💈 ${state.appointment.barber}\n📅 ${state.appointment.displayDate}\n⏰ ${state.appointment.time}\n\nSi deseas, puedes agendar uno nuevo escribiendo *menu*.`
+          `✅ *Tu turno fue cancelado correctamente.*
+
+          💈 *Barbero:* ${state.appointment.barber}
+          📅 *Fecha:* ${state.appointment.displayDate}
+          ⏰ *Hora:* ${state.appointment.time}
+
+          Si deseas agendar uno nuevo, escribe *menu*.`
         );
         return;
       }
@@ -697,13 +717,13 @@ class MessageHandler {
   }
 
   async sendBarberOptions(to) {
-    let message = "💈 Elige tu barbero:\n\n";
+    let message = "✂️ Elige tu barbero:\n\n";
 
     this.barbers.forEach((barber, index) => {
-      message += `${index + 1}. ${barber}\n`;
+      message += `${index + 1}️⃣ ${barber}\n`;
     });
 
-    message += "\n✍️ Responde solo con el número del barbero.\nEjemplo: 1";
+    message += "\n✍️ Responde solo con el número de la opción.\nEjemplo: 1";
 
     await whatsappService.sendMessage(to, message);
   }
