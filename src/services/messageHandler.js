@@ -16,7 +16,7 @@ class MessageHandler {
     this.barbers = ["Bolon", "Julian"];
     this.errorCount = {};
     this.barberPhones = {
-      Bolon: "573137127100",
+      Bolon: "573125911132",
       Julian: "573125911132"
     };
   }
