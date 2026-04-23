@@ -120,7 +120,7 @@ class MessageHandler {
 
     } else if (message?.type === 'interactive') {
       const to = message.from;
-      const option = this.normalizeText(message?.interactive?.button_reply?.title);
+      const option = message?.interactive?.button_reply?.id;
 
       const activeState =
         this.appointmentState[to] ||
@@ -184,16 +184,20 @@ class MessageHandler {
     let response;
 
     switch (option) {
+      case '1':
       case 'agendar turno':
         this.resetError(to);
         this.appointmentState[to] = {
           step: 'name',
           lastActivity: Date.now()
         };
-        response = '¿Cuál es tu nombre?';
+        response = `👤 Para comenzar, escribe tu nombre:
+
+  (Ejemplo: Juan Pérez)`;
         await whatsappService.sendMessage(to, response);
         break;
 
+      case '2':
       case 'cancelar turno': {
         this.resetError(to);
 
@@ -215,20 +219,21 @@ class MessageHandler {
 
         const message = `📋 Esta es tu próxima cita:
 
-        👤 *Cliente:* ${appointment.name}
-        💈 *Barbero:* ${appointment.barber}
-        📅 *Fecha:* ${appointment.displayDate}
-        ⏰ *Hora:* ${appointment.time}
+  👤 *Cliente:* ${appointment.name}
+  💈 *Barbero:* ${appointment.barber}
+  📅 *Fecha:* ${appointment.displayDate}
+  ⏰ *Hora:* ${appointment.time}
 
-        ¿Deseas cancelarla?
+  ¿Deseas cancelarla?
 
-        1️⃣ Sí, cancelar
-        2️⃣ No`;
+  1️⃣ Sí, cancelar
+  2️⃣ No`;
 
         await whatsappService.sendMessage(to, message);
         return;
       }
 
+      case '4':
       case 'hablar con barberia':
         this.resetError(to);
         this.assistantState[to] = {
@@ -239,6 +244,7 @@ class MessageHandler {
         await whatsappService.sendMessage(to, response);
         break;
 
+      case '3':
       case 'ubicacion y contacto':
       case 'ubicacion':
         this.resetError(to);
