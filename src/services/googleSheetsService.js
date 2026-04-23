@@ -119,13 +119,19 @@ export const getAvailableSlots = async (barber, date) => {
     const authClient = await getAuthClient();
     const rows = await getSheetData(authClient);
 
-    const allSlots = [
-      "8am", "8:30am", "9am", "9:30am",
-      "10am", "10:30am", "11am", "11:30am",
-      "12pm",
-      "1:30pm", "2pm", "2:30pm", "3pm", "3:30pm",
-      "4pm", "4:30pm"
-    ];
+    let allSlots = [];
+
+    if (barber.toLowerCase().trim() === 'bolon') {
+      allSlots = [
+        "9am", "9:35am", "10:10am", "10:45am", "11:20am", "11:55am",
+        "1:30pm", "2:05pm", "2:40pm", "3:15pm", "3:50pm", "4:25pm"
+      ];
+    } else if (barber.toLowerCase().trim() === 'julian') {
+      allSlots = [
+        "10am", "10:40am", "11:20am", "12pm", "12:40pm",
+        "2:20pm", "3pm", "3:40pm", "4:20pm", "5pm"
+      ];
+    }
 
     const occupied = rows
       .filter(row => {
