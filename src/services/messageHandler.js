@@ -646,14 +646,27 @@ class MessageHandler {
     return { hour, minutes };
   }
 
+  formatDisplayDate(dateString) {
+    const date = new Date(`${dateString}T00:00:00`);
+
+    const dayNames = [
+      'Domingo', 'Lunes', 'Martes', 'Miércoles',
+      'Jueves', 'Viernes', 'Sábado'
+    ];
+
+    const monthNames = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+
+    return `${dayNames[date.getDay()]} ${date.getDate()} de ${monthNames[date.getMonth()]}`;
+  }
+
   async generateNextAvailableDates(barber) {
     const dates = [];
     const now = new Date(
       new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
     );
-
-    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
     let i = 0;
     while (dates.length < 7) {
@@ -661,25 +674,18 @@ class MessageHandler {
       current.setDate(now.getDate() + i);
 
       const day = current.getDay();
+
       if (day !== 0) {
         const year = current.getFullYear();
         const month = String(current.getMonth() + 1).padStart(2, '0');
         const dayOfMonth = String(current.getDate()).padStart(2, '0');
         const isoDate = `${year}-${month}-${dayOfMonth}`;
 
-        let label = `${dayNames[day]} ${current.getDate()} de ${monthNames[current.getMonth()]}`;
-
-        if (i === 0) {
-          label = `Hoy (${current.getDate()} de ${monthNames[current.getMonth()]})`;
-        } else if (i === 1) {
-          label = `Mañana (${current.getDate()} de ${monthNames[current.getMonth()]})`;
-        }
-
         const slots = await getAvailableSlots(barber, isoDate);
 
         dates.push({
           value: isoDate,
-          label,
+          label: this.formatDisplayDate(isoDate),
           hasAvailability: slots.length > 0
         });
       }
