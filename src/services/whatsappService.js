@@ -5,15 +5,31 @@ class WhatsAppService {
     const data = {
       messaging_product: 'whatsapp',
       to,
+      type: 'text',
       text: { body: bodyText },
-
-      // Si luego quieres responder citando mensaje:
-      // context: {
-      //   message_id: messageId,
-      // },
     };
 
-    await sendToWhatsApp(data);
+    console.log('📤 Enviando mensaje WhatsApp');
+    console.log('📱 Para:', to);
+    console.log('💬 Mensaje:', bodyText);
+
+    try {
+      const response = await sendToWhatsApp(data);
+
+      console.log('✅ WhatsApp respondió OK:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error enviando mensaje WhatsApp');
+
+      if (error.response) {
+        console.error('📛 Status:', error.response.status);
+        console.error('📛 Data:', JSON.stringify(error.response.data, null, 2));
+      } else {
+        console.error('📛 Error:', error.message);
+      }
+
+      throw error;
+    }
   }
 
   async markAsRead(messageId) {

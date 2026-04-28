@@ -9,6 +9,10 @@ const sendToWhatsApp = async (data) => {
     'Content-Type': 'application/json',
   };
 
+  console.log("📡 Enviando request a WhatsApp API");
+  console.log("📍 URL:", baseUrl);
+  console.log("📦 Data:", JSON.stringify(data, null, 2));
+
   try {
     const response = await axios({
       method: 'POST',
@@ -17,9 +21,20 @@ const sendToWhatsApp = async (data) => {
       data,
     });
 
+    console.log("✅ Respuesta WhatsApp API:", JSON.stringify(response.data, null, 2));
+
     return response.data;
   } catch (error) {
-    console.error('Error sending to WhatsApp:', error?.response?.data || error.message);
+    console.error("❌ Error sending to WhatsApp");
+
+    if (error.response) {
+      console.error("📛 Status:", error.response.status);
+      console.error("📛 Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("📛 Error:", error.message);
+    }
+
+    throw error;
   }
 };
 

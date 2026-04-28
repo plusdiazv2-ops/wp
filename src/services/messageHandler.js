@@ -773,20 +773,43 @@ Te recordamos tu turno en *Exclusive Barber* 💈
   async notifyBarberNewAppointment(appointment) {
     const barberPhone = this.barberPhones[appointment.barber];
 
+    console.log("📢 Preparando notificación al barbero");
+    console.log("👤 Barbero:", appointment.barber);
+    console.log("📱 Número encontrado:", barberPhone);
+    console.log("📋 Appointment:", appointment);
+
     if (!barberPhone) {
-      console.log(`No hay número configurado para el barbero ${appointment.barber}`);
+      console.log(`❌ No hay número configurado para el barbero ${appointment.barber}`);
       return;
     }
 
     const message = `📅 Nuevo turno agendado
 
-👤 Cliente: ${appointment.name}
-💈 Barbero: ${appointment.barber}
-📅 Fecha: ${appointment.displayDate}
-⏰ Hora: ${appointment.time}
-📞 Teléfono: ${appointment.phone || ''}`;
+  👤 Cliente: ${appointment.name}
+  💈 Barbero: ${appointment.barber}
+  📅 Fecha: ${appointment.displayDate}
+  ⏰ Hora: ${appointment.time}
+  📞 Teléfono: ${appointment.phone || ''}`;
 
-    await whatsappService.sendMessage(barberPhone, message);
+    console.log("📤 Enviando mensaje al barbero...");
+    console.log("📱 Para:", barberPhone);
+    console.log("💬 Mensaje:", message);
+
+    try {
+      const response = await whatsappService.sendMessage(barberPhone, message);
+
+      console.log("✅ Mensaje al barbero enviado correctamente");
+      console.log("📦 Respuesta:", response);
+    } catch (error) {
+      console.error("❌ ERROR enviando mensaje al barbero");
+
+      if (error.response) {
+        console.error("📛 Status:", error.response.status);
+        console.error("📛 Data:", JSON.stringify(error.response.data, null, 2));
+      } else {
+        console.error("📛 Error:", error.message);
+      }
+    }
   }
 
   buildAppointmentDateTime(date, time) {
