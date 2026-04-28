@@ -3,12 +3,22 @@ import messageHandler from '../services/messageHandler.js';
 
 class WebhookController {
   async handleIncoming(req, res) {
-    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-    const senderInfo = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+    console.log("📩 WEBHOOK COMPLETO:", JSON.stringify(req.body, null, 2));
+
+    const value = req.body.entry?.[0]?.changes?.[0]?.value;
+
+    const message = value?.messages?.[0];
+    const senderInfo = value?.contacts?.[0];
+    const status = value?.statuses?.[0];
+
+    if (status) {
+      console.log("📬 STATUS WHATSAPP:", JSON.stringify(status, null, 2));
+    }
 
     if (message) {
       await messageHandler.handleIncomingMessage(message, senderInfo);
     }
+
     res.sendStatus(200);
   }
 
