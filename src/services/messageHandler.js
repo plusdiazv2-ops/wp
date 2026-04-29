@@ -19,6 +19,11 @@ class MessageHandler {
       Bolon: "573146926477",
       Julian: "573125911132"
     };
+
+    this.adminPhones = [
+      "573146926477",
+      "573125911132"
+    ];
   }
 
   normalizeText(text) {
@@ -537,17 +542,16 @@ class MessageHandler {
         // 🔒 VALIDACIÓN: máximo 2 turnos por día
         const appointmentsCount = await countUserAppointmentsSameDay(to, state.date);
 
-        if (appointmentsCount >= 2) {
-          await whatsappService.sendMessage(
-            to,
-            "❌ Ya tienes 2 turnos agendados para ese día.\n\nSi necesitas más reservas o presentas algún inconveniente, comunícate directamente con la barbería para ayudarte."
-          );
-
-          // 🔁 Reiniciar flujo para evitar que quede colgado
-          delete this.appointmentState[to];
-          return;
+        const isAdmin = this.adminPhones.includes(to);
+        if (!isAdmin) {
+          if (appointmentsCount >= 2) {
+            await whatsappService.sendMessage(
+              to,
+              "⚠️ Ya tienes el máximo de 2 turnos permitidos para este día."
+            );
+            return;
+          }
         }
-
         const isAvailable = await checkAvailability(state.barber, state.date, finalTime);
 
         if (!isAvailable) {
