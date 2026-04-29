@@ -791,17 +791,17 @@ Te recordamos tu turno en *Exclusive Barber* 💈
   ⏰ Hora: ${appointment.time}
   📞 Teléfono: ${appointment.phone || ''}`;
 
-    console.log("📤 Enviando mensaje al barbero...");
+    console.log("📤 Enviando mensaje normal al barbero...");
     console.log("📱 Para:", barberPhone);
     console.log("💬 Mensaje:", message);
 
     try {
       const response = await whatsappService.sendMessage(barberPhone, message);
 
-      console.log("✅ Mensaje al barbero enviado correctamente");
+      console.log("✅ Mensaje normal al barbero enviado correctamente");
       console.log("📦 Respuesta:", response);
     } catch (error) {
-      console.error("❌ ERROR enviando mensaje al barbero");
+      console.error("⚠️ Falló mensaje normal al barbero. Usando TEMPLATE...");
 
       if (error.response) {
         console.error("📛 Status:", error.response.status);
@@ -809,6 +809,21 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       } else {
         console.error("📛 Error:", error.message);
       }
+
+      const templateResponse = await whatsappService.sendTemplate(
+        barberPhone,
+        'nuevo_turno_barbero',
+        [
+          appointment.name,
+          appointment.barber,
+          appointment.displayDate,
+          appointment.time,
+          appointment.phone || ''
+        ]
+      );
+
+      console.log("✅ Template nuevo_turno_barbero enviado al barbero");
+      console.log("📦 Respuesta template:", templateResponse);
     }
   }
 
