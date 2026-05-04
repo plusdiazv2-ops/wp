@@ -777,30 +777,29 @@ Te recordamos tu turno en *Exclusive Barber* 💈
   async notifyBarberNewAppointment(appointment) {
     const barberPhone = this.barberPhones[appointment.barber];
 
-    console.log("📢 Preparando notificación al barbero");
-    console.log("👤 Barbero:", appointment.barber);
-    console.log("📱 Número encontrado:", barberPhone);
-
     if (!barberPhone) {
       console.log(`❌ No hay número configurado para el barbero ${appointment.barber}`);
       return;
     }
 
-    const message = `📅 Nuevo turno agendado
-
-  👤 Cliente: ${appointment.name}
-  💈 Barbero: ${appointment.barber}
-  📅 Fecha: ${appointment.displayDate}
-  ⏰ Hora: ${appointment.time}
-  📞 Teléfono: ${appointment.phone || ''}`;
-
     try {
-      const response = await whatsappService.sendMessage(barberPhone, message);
+      console.log("📤 Enviando template nuevo_turno_barbero al barbero:", barberPhone);
 
-      console.log("✅ Mensaje normal al barbero enviado correctamente");
-      console.log("📦 Respuesta:", response);
+      await whatsappService.sendTemplate(
+        barberPhone,
+        "nuevo_turno_barbero",
+        [
+          appointment.name || "Cliente",
+          appointment.barber || "Barbero",
+          appointment.phone || "Sin teléfono",
+          appointment.displayDate || appointment.date || "Sin fecha",
+          appointment.time || "Sin hora"
+        ]
+      );
+
+      console.log("✅ Template nuevo_turno_barbero enviado correctamente");
     } catch (error) {
-      console.error("❌ Error enviando mensaje al barbero");
+      console.error("❌ Error enviando template nuevo_turno_barbero");
 
       if (error.response) {
         console.error("📛 Status:", error.response.status);
