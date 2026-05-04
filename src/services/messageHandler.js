@@ -62,6 +62,175 @@ class MessageHandler {
     this.errorCount[to] = 0;
   }
 
+  isBackInput(input) {
+    const cleanInput = this.normalizeText(input);
+    return cleanInput === 'volver' || cleanInput === 'atras';
+  }
+
+  isMenuInput(input) {
+    const cleanInput = this.normalizeText(input);
+    return cleanInput === 'menu' || cleanInput === 'menú';
+  }
+
+  isCancelInput(input) {
+    const cleanInput = this.normalizeText(input);
+    return cleanInput === 'cancelar' || cleanInput === 'salir';
+  }
+
+  async sendMainMenu(to) {
+    await this.sendWelcomeMenu(to);
+  }
+
+  async handleGlobalNavigation(to, messageText) {
+    const cleanInput = this.normalizeText(messageText);
+    const hasActiveFlow = this.appointmentState[to] || this.cancelState[to] || this.assistantState[to];
+
+    if (!hasActiveFlow) return false;
+
+    // 🏠 Menú principal: funciona en cualquier flujo activo.
+    if (this.isMenuInput(cleanInput)) {
+      this.clearAllStates(to);
+      await this.sendMainMenu(to);
+      return true;
+    }
+
+    // ❌ Cancelar/salir: abandona cualquier flujo activo sin afectar turnos guardados.
+    if (this.isCancelInput(cleanInput)) {
+      this.clearAllStates(to);
+      await whatsappService.sendMessage(
+        to,
+        '✅ Proceso cancelado. Escribe *menu* para ver las opciones disponibles.'
+      );
+      return true;
+    }
+
+    // 🔙 Volver escrito: funciona en cualquier flujo activo donde tenga sentido.
+    if (this.isBackInput(cleanInput)) {
+      return await this.handleBack(to);
+    }
+
+    return false;
+  }
+
+  async handleBack(to) {
+    // 🔙 Flujo de agendamiento
+    if (this.appointmentState[to]) {
+      const state = this.appointmentState[to];
+
+      if (state.step === 'barber') {
+        state.step = 'name';
+        this.resetError(to);
+        await whatsappService.sendMessage(
+          to,
+          `👤 Escribe nuevamente tu nombre:\n\n(Ejemplo: Juan Pérez)\n\n5️⃣ Menú principal`
+        );
+        return true;
+      }
+
+      if (state.step === 'date') {
+        state.step = 'barber';
+        delete state.barber;
+        delete state.availableDates;
+        this.resetError(to);
+        await this.sendBarberOptions(to);
+        return true;
+      }
+
+      if (state.step === 'time') {
+        state.step = 'date';
+        delete state.date;
+        delete state.displayDate;
+        delete state.availableSlots;
+        this.resetError(to);
+        await this.sendDateOptions(to, state);
+        return true;
+      }
+
+      return false;
+    }
+
+    // 🔙 Flujo de cancelación
+    if (this.cancelState[to]) {
+      const state = this.cancelState[to];
+
+      if (state.step === 'confirm_cancel') {
+        state.step = 'select_cancel';
+        delete state.selectedAppointment;
+        this.resetError(to);
+        await this.sendCancelAppointmentList(to, state.appointments);
+        return true;
+      }
+
+      if (state.step === 'select_cancel') {
+        delete this.cancelState[to];
+        this.resetError(to);
+        await this.sendMainMenu(to);
+        return true;
+      }
+
+      return false;
+    }
+
+    // 🔙 Asistente IA
+    if (this.assistantState[to]) {
+      delete this.assistantState[to];
+      this.resetError(to);
+      await this.sendMainMenu(to);
+      return true;
+    }
+
+    return false;
+  }
+
+  getNavigationNumber(input, optionsCount) {
+    const cleanInput = this.normalizeText(input);
+    const selectedNumber = parseInt(cleanInput, 10);
+
+    if (!Number.isInteger(selectedNumber)) {
+      return null;
+    }
+
+    return {
+      value: selectedNumber,
+      isBack: selectedNumber === optionsCount + 1,
+      isMenu: selectedNumber === optionsCount + 2,
+    };
+  }
+
+  async handleNavigationNumber(to, input, optionsCount) {
+    const nav = this.getNavigationNumber(input, optionsCount);
+
+    if (!nav) return false;
+
+    if (nav.isBack) {
+      return await this.handleBack(to);
+    }
+
+    if (nav.isMenu) {
+      this.clearAllStates(to);
+      await this.sendMainMenu(to);
+      return true;
+    }
+
+    return false;
+  }
+
+  buildNavigationFooter(optionsCount, showBack = true, showMenu = true) {
+    let footer = '';
+
+    if (showBack) {
+      footer += `\n${optionsCount + 1}️⃣ Volver`;
+    }
+
+    if (showMenu) {
+      footer += `\n${optionsCount + 2}️⃣ Menú principal`;
+    }
+
+    footer += `\n\nTambién puedes escribir *volver* o *menu*.`;
+
+    return footer;
+  }
+
   async handleIncomingMessage(message, senderInfo) {
     if (message?.type === 'text') {
       const incomingMessage = this.normalizeText(message.text.body);
@@ -88,6 +257,12 @@ class MessageHandler {
           "⏰ Tu sesión expiró por inactividad.\n\nEscribe *menu* para comenzar de nuevo."
         );
 
+        await whatsappService.markAsRead(message.id);
+        return;
+      }
+
+      const navigationHandled = await this.handleGlobalNavigation(to, message.text.body);
+      if (navigationHandled) {
         await whatsappService.markAsRead(message.id);
         return;
       }
@@ -169,8 +344,8 @@ class MessageHandler {
     const name = this.getSenderName(senderInfo);
     const welcomeMessage = `👋 Hola ${name}, bienvenido a *Exclusive Barber* 💈
 
-    Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`;
-    
+Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`;
+
     await whatsappService.sendMessage(to, welcomeMessage, messageId);
   }
 
@@ -196,9 +371,7 @@ class MessageHandler {
           step: 'name',
           lastActivity: Date.now()
         };
-        response = `👤 Para comenzar, escribe tu nombre:
-
-  (Ejemplo: Juan Pérez)`;
+        response = `👤 Para comenzar, escribe tu nombre:\n\n(Ejemplo: Juan Pérez)\n\n5️⃣ Menú principal`;
         await whatsappService.sendMessage(to, response);
         break;
 
@@ -222,16 +395,7 @@ class MessageHandler {
           lastActivity: Date.now()
         };
 
-        let message = `📋 *Estos son tus turnos próximos:*\n\n`;
-
-        appointments.forEach((appointment, index) => {
-          message += `${index + 1}️⃣ *${appointment.displayDate}* - ${appointment.time}\n`;
-          message += `💈 Barbero: ${appointment.barber}\n\n`;
-        });
-
-        message += `✍️ Responde con el número del turno que deseas cancelar.`;
-
-        await whatsappService.sendMessage(to, message);
+        await this.sendCancelAppointmentList(to, appointments);
         return;
       }
 
@@ -305,17 +469,17 @@ class MessageHandler {
 
     return `✅ *¡Turno confirmado!*
 
-    👤 *Nombre:* ${appointment.name}
-    💈 *Barbero:* ${appointment.barber}
-    📅 *Fecha:* ${appointment.displayDate}
-    ⏰ *Hora:* ${appointment.time}
+👤 *Nombre:* ${appointment.name}
+💈 *Barbero:* ${appointment.barber}
+📅 *Fecha:* ${appointment.displayDate}
+⏰ *Hora:* ${appointment.time}
 
-    📌 Recuerda llegar 5 minutos antes de tu cita.
+📌 Recuerda llegar 5 minutos antes de tu cita.
 
-    Si necesitas cancelar tu turno:
-    👉 Escribe *menu* y selecciona *Cancelar turno*.
+Si necesitas cancelar tu turno:
+👉 Escribe *menu* y selecciona *Cancelar turno*.
 
-    ¡Te esperamos en *Exclusive Barber* 💈🔥`;
+¡Te esperamos en *Exclusive Barber* 💈🔥`;
   }
 
   async handleAppointmentFlow(to, message) {
@@ -323,16 +487,36 @@ class MessageHandler {
     let response;
 
     switch (state.step) {
-      case 'name':
-        state.name = message.trim();
+      case 'name': {
+        const cleanInput = message.trim();
+
+        if (this.isMenuInput(cleanInput) || cleanInput === '5') {
+          this.clearAllStates(to);
+          await this.sendMainMenu(to);
+          return;
+        }
+
+        if (!cleanInput) {
+          await whatsappService.sendMessage(
+            to,
+            '❌ Escribe tu nombre para continuar.\n\n5️⃣ Menú principal'
+          );
+          return;
+        }
+
+        state.name = cleanInput;
         state.step = 'barber';
         this.resetError(to);
 
         await this.sendBarberOptions(to);
         return;
+      }
 
       case 'barber': {
         const cleanInput = message.trim();
+
+        const navHandled = await this.handleNavigationNumber(to, cleanInput, this.barbers.length);
+        if (navHandled) return;
 
         if (!/^\d+$/.test(cleanInput)) {
           if (this.incrementError(to)) {
@@ -345,7 +529,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            "❌ Respuesta inválida. Escribe solo el número del barbero.\nEjemplo: 1"
+            `❌ Respuesta inválida. Escribe solo el número del barbero.\nEjemplo: 1${this.buildNavigationFooter(this.barbers.length)}`
           );
           return;
         }
@@ -366,7 +550,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            "❌ Opción inválida. Escribe solo el número de un barbero de la lista."
+            `❌ Opción inválida. Escribe solo el número de un barbero de la lista.${this.buildNavigationFooter(this.barbers.length)}`
           );
           return;
         }
@@ -375,27 +559,16 @@ class MessageHandler {
         state.barber = this.barbers[selectedBarberIndex];
         state.step = 'date';
 
-        const nextDates = await this.generateNextAvailableDates(state.barber);
-        state.availableDates = nextDates;
-
-        let dateMessage = `✅ Perfecto, *${state.name}*.\nHas elegido a *${state.barber}* 💈\n\n📅 Selecciona una fecha disponible:\n\n`;
-
-        nextDates.forEach((d, index) => {
-          dateMessage += `${index + 1}️⃣ ${d.label}`;
-          if (!d.hasAvailability) {
-            dateMessage += ` ❌`;
-          }
-          dateMessage += `\n`;
-        });
-
-        dateMessage += `\n✍️ Responde solo con el número de la fecha que deseas.`;
-
-        await whatsappService.sendMessage(to, dateMessage);
+        await this.sendDateOptions(to, state);
         return;
       }
 
       case 'date': {
         const cleanInput = message.trim();
+        const optionsCount = state.availableDates?.length || 0;
+
+        const navHandled = await this.handleNavigationNumber(to, cleanInput, optionsCount);
+        if (navHandled) return;
 
         if (!/^\d+$/.test(cleanInput)) {
           if (this.incrementError(to)) {
@@ -408,7 +581,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            "❌ Respuesta inválida. Escribe solo el número de la fecha que deseas.\nEjemplo: 1"
+            `❌ Respuesta inválida. Escribe solo el número de la fecha que deseas.\nEjemplo: 1${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -430,7 +603,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            "❌ Opción inválida. Responde solo con el número de una fecha de la lista."
+            `❌ Opción inválida. Responde solo con el número de una fecha de la lista.${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -448,7 +621,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            `❌ ${selectedDate.label} no tiene turnos disponibles. Elige otra fecha.`
+            `❌ ${selectedDate.label} no tiene turnos disponibles. Elige otra fecha.${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -462,7 +635,7 @@ class MessageHandler {
         if (availableSlots.length === 0) {
           await whatsappService.sendMessage(
             to,
-            `❌ No hay horarios disponibles para ${state.displayDate}.`
+            `❌ No hay horarios disponibles para ${state.displayDate}.${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -470,20 +643,16 @@ class MessageHandler {
         state.availableSlots = availableSlots;
         state.step = 'time';
 
-        let text = `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:\n\n`;
-
-        availableSlots.forEach((slot, index) => {
-          text += `${index + 1}️⃣ ${slot}\n`;
-        });
-
-        text += `\n✍️ Responde solo con el número del horario que prefieras.`;
-
-        await whatsappService.sendMessage(to, text);
+        await this.sendTimeOptions(to, state);
         return;
       }
 
       case 'time': {
         const cleanInput = message.trim();
+        const optionsCount = state.availableSlots?.length || 0;
+
+        const navHandled = await this.handleNavigationNumber(to, cleanInput, optionsCount);
+        if (navHandled) return;
 
         if (!/^\d+$/.test(cleanInput)) {
           if (this.incrementError(to)) {
@@ -496,7 +665,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            "❌ Respuesta inválida. Escribe solo el número de la hora que deseas.\nEjemplo: 2"
+            `❌ Respuesta inválida. Escribe solo el número de la hora que deseas.\nEjemplo: 2${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -518,7 +687,7 @@ class MessageHandler {
 
           await whatsappService.sendMessage(
             to,
-            "❌ Opción inválida. Escribe solo el número de una hora de la lista."
+            `❌ Opción inválida. Escribe solo el número de una hora de la lista.${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -533,17 +702,18 @@ class MessageHandler {
           if (appointmentsCount >= 2) {
             await whatsappService.sendMessage(
               to,
-              "⚠️ Ya tienes el máximo de 2 turnos permitidos para este día."
+              `⚠️ Ya tienes el máximo de 2 turnos permitidos para este día.${this.buildNavigationFooter(optionsCount)}`
             );
             return;
           }
         }
+
         const isAvailable = await checkAvailability(state.barber, state.date, finalTime);
 
         if (!isAvailable) {
           await whatsappService.sendMessage(
             to,
-            "❌ Ese horario ya fue tomado por otro cliente. Elige otra opción."
+            `❌ Ese horario ya fue tomado por otro cliente. Elige otra opción.${this.buildNavigationFooter(optionsCount)}`
           );
           return;
         }
@@ -564,10 +734,15 @@ class MessageHandler {
     const cleanInput = message.trim();
 
     if (state.step === 'select_cancel') {
+      const optionsCount = state.appointments?.length || 0;
+
+      const navHandled = await this.handleNavigationNumber(to, cleanInput, optionsCount);
+      if (navHandled) return;
+
       if (!/^\d+$/.test(cleanInput)) {
         await whatsappService.sendMessage(
           to,
-          '❌ Respuesta inválida. Responde solo con el número del turno.'
+          `❌ Respuesta inválida. Responde solo con el número del turno.${this.buildNavigationFooter(optionsCount)}`
         );
         return;
       }
@@ -577,7 +752,7 @@ class MessageHandler {
       if (index < 0 || index >= state.appointments.length) {
         await whatsappService.sendMessage(
           to,
-          '❌ Número fuera de rango. Intenta nuevamente.'
+          `❌ Número fuera de rango. Intenta nuevamente.${this.buildNavigationFooter(optionsCount)}`
         );
         return;
       }
@@ -585,22 +760,14 @@ class MessageHandler {
       state.selectedAppointment = state.appointments[index];
       state.step = 'confirm_cancel';
 
-      const appt = state.selectedAppointment;
-
-      await whatsappService.sendMessage(
-        to,
-        `📋 *Confirma la cancelación:*\n\n` +
-        `👤 ${appt.name}\n` +
-        `💈 ${appt.barber}\n` +
-        `📅 ${appt.displayDate}\n` +
-        `⏰ ${appt.time}\n\n` +
-        `1️⃣ Sí cancelar\n2️⃣ No`
-      );
-
+      await this.sendCancelConfirmation(to, state.selectedAppointment);
       return;
     }
 
     if (state.step === 'confirm_cancel') {
+      const navHandled = await this.handleNavigationNumber(to, cleanInput, 2);
+      if (navHandled) return;
+
       if (cleanInput === '1') {
         const appt = state.selectedAppointment;
 
@@ -644,7 +811,7 @@ class MessageHandler {
 
       await whatsappService.sendMessage(
         to,
-        '❌ Respuesta inválida.\n1️⃣ Sí\n2️⃣ No'
+        `❌ Respuesta inválida.\n1️⃣ Sí\n2️⃣ No${this.buildNavigationFooter(2)}`
       );
     }
   }
@@ -748,9 +915,68 @@ class MessageHandler {
       message += `${index + 1}️⃣ ${barber}\n`;
     });
 
-    message += "\n✍️ Responde solo con el número de la opción.\nEjemplo: 1";
+    message += this.buildNavigationFooter(this.barbers.length);
 
     await whatsappService.sendMessage(to, message);
+  }
+
+  async sendDateOptions(to, state) {
+    const nextDates = await this.generateNextAvailableDates(state.barber);
+    state.availableDates = nextDates;
+
+    let dateMessage = `✅ Perfecto, *${state.name}*.\nHas elegido a *${state.barber}* 💈\n\n📅 Selecciona una fecha disponible:\n\n`;
+
+    nextDates.forEach((d, index) => {
+      dateMessage += `${index + 1}️⃣ ${d.label}`;
+      if (!d.hasAvailability) {
+        dateMessage += ` ❌`;
+      }
+      dateMessage += `\n`;
+    });
+
+    dateMessage += this.buildNavigationFooter(nextDates.length);
+
+    await whatsappService.sendMessage(to, dateMessage);
+  }
+
+  async sendTimeOptions(to, state) {
+    let text = `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:\n\n`;
+
+    state.availableSlots.forEach((slot, index) => {
+      text += `${index + 1}️⃣ ${slot}\n`;
+    });
+
+    text += this.buildNavigationFooter(state.availableSlots.length);
+
+    await whatsappService.sendMessage(to, text);
+  }
+
+  async sendCancelAppointmentList(to, appointments) {
+    let message = `📋 *Estos son tus turnos próximos:*\n\n`;
+
+    appointments.forEach((appointment, index) => {
+      message += `${index + 1}️⃣ *${appointment.displayDate}* - ${appointment.time}\n`;
+      message += `💈 Barbero: ${appointment.barber}\n\n`;
+    });
+
+    message += `✍️ Responde con el número del turno que deseas cancelar.`;
+    message += this.buildNavigationFooter(appointments.length);
+
+    await whatsappService.sendMessage(to, message);
+  }
+
+  async sendCancelConfirmation(to, appointment) {
+    await whatsappService.sendMessage(
+      to,
+      `📋 *Confirma la cancelación:*\n\n` +
+      `👤 ${appointment.name}\n` +
+      `💈 ${appointment.barber}\n` +
+      `📅 ${appointment.displayDate}\n` +
+      `⏰ ${appointment.time}\n\n` +
+      `1️⃣ Sí cancelar\n` +
+      `2️⃣ No` +
+      this.buildNavigationFooter(2)
+    );
   }
 
   async sendLocationAndContact(to) {
@@ -765,12 +991,12 @@ class MessageHandler {
     await whatsappService.sendMessage(
       to,
       `📍 Exclusive Barber 💈
-  Glorieta del Barrio San Sebastián
-  Manizales, Caldas
+Glorieta del Barrio San Sebastián
+Manizales, Caldas
 
-  📞 Contacto: +57 3146926477
+📞 Contacto: +57 3146926477
 
-  Si necesitas ayuda con tu turno, puedes escribirnos o llamarnos.`
+Si necesitas ayuda con tu turno, puedes escribirnos o llamarnos.`
     );
   }
 

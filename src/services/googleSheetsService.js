@@ -258,7 +258,7 @@ export const getUpcomingAppointmentsByPhone = async (phone) => {
     const authClient = await getAuthClient();
     const rows = await getSheetData(authClient);
 
-    if (!rows || rows.length < 2) return null;
+    if (!rows || rows.length < 2) return [];
 
     const now = new Date(
       new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
