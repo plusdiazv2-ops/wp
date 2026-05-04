@@ -2,7 +2,7 @@ import whatsappService from './whatsappService.js';
 import appendToSheet, {
   checkAvailability,
   getAvailableSlots,
-  getUpcomingAppointmentByPhone,
+  getUpcomingAppointmentsByPhone,
   updateAppointmentStatus,
   countUserAppointmentsSameDay,
 } from './googleSheetsService.js';
@@ -206,48 +206,34 @@ class MessageHandler {
       case 'cancelar turno': {
         this.resetError(to);
 
-        const appointment = await getUpcomingAppointmentByPhone(to);
+        const appointments = await getUpcomingAppointmentsByPhone(to);
 
-        if (!appointment) {
+        if (!appointments || appointments.length === 0) {
           await whatsappService.sendMessage(
             to,
-            'No tienes ningún turno confirmado pendiente para cancelar.'
+            'No tienes ningún turno pendiente para cancelar.'
           );
           return;
         }
 
         this.cancelState[to] = {
-          step: 'confirm_cancel',
-          appointment,
+          step: 'select_cancel',
+          appointments,
           lastActivity: Date.now()
         };
 
-        const message = `📋 Esta es tu próxima cita:
+        let message = `📋 *Estos son tus turnos próximos:*\n\n`;
 
-  👤 *Cliente:* ${appointment.name}
-  💈 *Barbero:* ${appointment.barber}
-  📅 *Fecha:* ${appointment.displayDate}
-  ⏰ *Hora:* ${appointment.time}
+        appointments.forEach((appointment, index) => {
+          message += `${index + 1}️⃣ *${appointment.displayDate}* - ${appointment.time}\n`;
+          message += `💈 Barbero: ${appointment.barber}\n\n`;
+        });
 
-  ¿Deseas cancelarla?
-
-  1️⃣ Sí, cancelar
-  2️⃣ No`;
+        message += `✍️ Responde con el número del turno que deseas cancelar.`;
 
         await whatsappService.sendMessage(to, message);
         return;
       }
-
-      case '4':
-      case 'hablar con barberia':
-        this.resetError(to);
-        this.assistantState[to] = {
-          step: 'question',
-          lastActivity: Date.now()
-        };
-        response = '🤖 Soy BarberIA. Pregunta lo que quieras sobre horarios, servicios o turnos.';
-        await whatsappService.sendMessage(to, response);
-        break;
 
       case '3':
       case 'ubicacion y contacto':
@@ -577,10 +563,49 @@ class MessageHandler {
     const state = this.cancelState[to];
     const cleanInput = message.trim();
 
+    if (state.step === 'select_cancel') {
+      if (!/^\d+$/.test(cleanInput)) {
+        await whatsappService.sendMessage(
+          to,
+          '❌ Respuesta inválida. Responde solo con el número del turno.'
+        );
+        return;
+      }
+
+      const index = parseInt(cleanInput, 10) - 1;
+
+      if (index < 0 || index >= state.appointments.length) {
+        await whatsappService.sendMessage(
+          to,
+          '❌ Número fuera de rango. Intenta nuevamente.'
+        );
+        return;
+      }
+
+      state.selectedAppointment = state.appointments[index];
+      state.step = 'confirm_cancel';
+
+      const appt = state.selectedAppointment;
+
+      await whatsappService.sendMessage(
+        to,
+        `📋 *Confirma la cancelación:*\n\n` +
+        `👤 ${appt.name}\n` +
+        `💈 ${appt.barber}\n` +
+        `📅 ${appt.displayDate}\n` +
+        `⏰ ${appt.time}\n\n` +
+        `1️⃣ Sí cancelar\n2️⃣ No`
+      );
+
+      return;
+    }
+
     if (state.step === 'confirm_cancel') {
       if (cleanInput === '1') {
+        const appt = state.selectedAppointment;
+
         const result = await updateAppointmentStatus(
-          state.appointment.rowNumber,
+          appt.rowNumber,
           'Cancelado'
         );
 
@@ -590,21 +615,19 @@ class MessageHandler {
         if (!result) {
           await whatsappService.sendMessage(
             to,
-            '❌ No pude cancelar tu turno en este momento. Inténtalo de nuevo.'
+            '❌ No pude cancelar el turno. Intenta de nuevo.'
           );
           return;
         }
 
         await whatsappService.sendMessage(
           to,
-          `✅ *Tu turno fue cancelado correctamente.*
-
-          💈 *Barbero:* ${state.appointment.barber}
-          📅 *Fecha:* ${state.appointment.displayDate}
-          ⏰ *Hora:* ${state.appointment.time}
-
-          Si deseas agendar uno nuevo, escribe *menu*.`
+          `✅ Turno cancelado:\n\n` +
+          `💈 ${appt.barber}\n` +
+          `📅 ${appt.displayDate}\n` +
+          `⏰ ${appt.time}`
         );
+
         return;
       }
 
@@ -614,22 +637,14 @@ class MessageHandler {
 
         await whatsappService.sendMessage(
           to,
-          'Perfecto, tu turno sigue confirmado.'
-        );
-        return;
-      }
-
-      if (this.incrementError(to)) {
-        await whatsappService.sendMessage(
-          to,
-          "❌ Parece que hay un error.\nEscribe *menu* para empezar de nuevo."
+          'Perfecto, tu turno sigue activo.'
         );
         return;
       }
 
       await whatsappService.sendMessage(
         to,
-        '❌ Respuesta inválida.\nResponde:\n1. Sí, cancelar\n2. No'
+        '❌ Respuesta inválida.\n1️⃣ Sí\n2️⃣ No'
       );
     }
   }

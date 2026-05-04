@@ -253,8 +253,8 @@ const slotToMinutes = (slot) => {
   return hour * 60 + minutes;
 };
 
-export const getUpcomingAppointmentByPhone = async (phone) => {
-  try {
+export const getUpcomingAppointmentsByPhone = async (phone) => {
+    try {
     const authClient = await getAuthClient();
     const rows = await getSheetData(authClient);
 
@@ -295,11 +295,9 @@ export const getUpcomingAppointmentByPhone = async (phone) => {
         return slotToMinutes(a.row[2]) - slotToMinutes(b.row[2]);
       });
 
-    if (appointments.length === 0) return null;
+    if (appointments.length === 0) return [];
 
-    const appointment = appointments[0];
-
-    return {
+    return appointments.map(appointment => ({
       rowNumber: appointment.rowNumber,
       date: appointment.row[0] || '',
       displayDate: appointment.row[1] || '',
@@ -309,10 +307,10 @@ export const getUpcomingAppointmentByPhone = async (phone) => {
       barber: appointment.row[5] || '',
       status: appointment.row[6] || '',
       createdAt: appointment.row[7] || '',
-    };
+    }));
   } catch (error) {
-    console.error('Error en getUpcomingAppointmentByPhone:', error);
-    return null;
+    console.error('Error en getUpcomingAppointmentsByPhone:', error);
+    return [];
   }
 };
 
