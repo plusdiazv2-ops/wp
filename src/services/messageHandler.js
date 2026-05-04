@@ -789,11 +789,11 @@ Te recordamos tu turno en *Exclusive Barber* 💈
         barberPhone,
         "nuevo_turno_barbero",
         [
-          appointment.name || "Cliente",
-          appointment.barber || "Barbero",
-          appointment.phone || "Sin teléfono",
-          appointment.displayDate || appointment.date || "Sin fecha",
-          appointment.time || "Sin hora"
+          appointment.name || "Cliente",                         // {{1}} Cliente
+          appointment.barber || "Barbero",                       // {{2}} Barbero
+          appointment.displayDate || appointment.date || "Fecha", // {{3}} Fecha
+          appointment.time || "Hora",                            // {{4}} Hora
+          appointment.phone || "Teléfono"                        // {{5}} Teléfono
         ]
       );
 
