@@ -403,6 +403,7 @@ export const getDailyScheduleByBarber = async (barber, date) => {
     const schedule = allSlots.map(slot => {
       const appointment = bookedAppointments.find(row => {
         const savedTime = (row[2] || '').toLowerCase().trim();
+
         return savedTime === slot.toLowerCase().trim();
       });
 
@@ -423,7 +424,27 @@ export const getDailyScheduleByBarber = async (barber, date) => {
       };
     });
 
-    return schedule.sort((a, b) => slotToMinutes(a.time) - slotToMinutes(b.time));
+    // 🔥 AGREGAR TURNOS HISTÓRICOS
+    bookedAppointments.forEach(appointment => {
+      const bookedTime = (appointment[2] || '').trim();
+
+      const exists = schedule.some(
+        item => item.time.toLowerCase().trim() === bookedTime.toLowerCase().trim()
+      );
+
+      if (!exists) {
+        schedule.push({
+          time: bookedTime,
+          status: 'ocupado',
+          name: appointment[3] || '',
+          phone: appointment[4] || ''
+        });
+      }
+    });
+
+    return schedule.sort(
+      (a, b) => slotToMinutes(a.time) - slotToMinutes(b.time)
+    );
 
   } catch (error) {
     console.error('Error obteniendo agenda diaria del barbero:', error);
