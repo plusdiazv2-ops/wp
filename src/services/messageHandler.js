@@ -8,7 +8,6 @@ import appendToSheet, {
   getAppointmentsByBarberAndDate,
 } from './googleSheetsService.js';
 import geminiAiService from './geminiAiService.js';
-import { getAppointmentsByBarberAndDate } from './googleSheetsService.js';
 
 class MessageHandler {
   constructor() {
