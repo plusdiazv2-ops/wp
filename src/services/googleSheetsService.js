@@ -121,15 +121,76 @@ export const getAvailableSlots = async (barber, date) => {
 
     let allSlots = [];
 
+    // 🔥 Día de la semana
+    const currentDate = new Date(`${date}T00:00:00`);
+    const day = currentDate.getDay();
+    // 0 = domingo
+    // 3 = miércoles
+
+    // =========================
+    // 💈 BOLON
+    // =========================
     if (barber.toLowerCase().trim() === 'bolon') {
+
+      // 🔥 Miércoles solo desde 1:30pm
+      if (day === 3) {
+
+        allSlots = [
+          "1:30pm",
+          "2:05pm",
+          "2:40pm",
+          "3:15pm",
+          "3:50pm",
+          "4:25pm"
+        ];
+
+      } else {
+
+        // 🔥 Horario normal
+        allSlots = [
+          "9am",
+          "9:35am",
+          "10:10am",
+          "10:45am",
+          "11:20am",
+          "11:55am",
+
+          "1:30pm",
+          "2:05pm",
+          "2:40pm",
+          "3:15pm",
+          "3:50pm",
+          "4:25pm"
+        ];
+
+      }
+    }
+
+    // =========================
+    // 💈 JULIAN
+    // =========================
+    else if (barber.toLowerCase().trim() === 'julian') {
+
+      // ❌ NO trabaja miércoles ni domingo
+      if (day === 0 || day === 3) {
+        return [];
+      }
+
       allSlots = [
-        "9am", "9:35am", "10:10am", "10:45am", "11:20am", "11:55am",
-        "1:30pm", "2:05pm", "2:40pm", "3:15pm", "3:50pm", "4:25pm"
-      ];
-    } else if (barber.toLowerCase().trim() === 'julian') {
-      allSlots = [
-        "10am", "10:40am", "11:20am", "12pm", "12:40pm",
-        "2:20pm", "3pm", "3:40pm", "4:20pm", "5pm"
+        "9:40am",
+        "10:20am",
+        "11:00am",
+        "11:40am",
+        "12:20pm",
+        "1:00pm",
+
+        "2:30pm",
+        "3:10pm",
+        "3:50pm",
+        "4:30pm",
+        "5:10pm",
+        "5:50pm",
+        "6:30pm"
       ];
     }
 
@@ -153,16 +214,28 @@ export const getAvailableSlots = async (barber, date) => {
       new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
     );
 
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const today = `${year}-${month}-${day}`;
+    const normalizeDate = (value) => {
+      const d = new Date(`${value}T00:00:00`);
+      if (isNaN(d.getTime())) return value;
 
-    if (date === today) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+
+      return `${y}-${m}-${dd}`;
+    };
+
+    const today = normalizeDate(
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    );
+
+    const selectedDate = normalizeDate(date);
+
+    if (selectedDate === today) {
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
       const slotToMinutes = (slot) => {
-        const match = slot.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
+        const match = slot.toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
         if (!match) return -1;
 
         let hour = parseInt(match[1], 10);
