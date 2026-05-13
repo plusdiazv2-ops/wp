@@ -6,6 +6,7 @@ import appendToSheet, {
   updateAppointmentStatus,
   countUserAppointmentsSameDay,
   getAppointmentsByBarberAndDate,
+  getDailyScheduleByBarber,
 } from './googleSheetsService.js';
 import geminiAiService from './geminiAiService.js';
 
@@ -1137,15 +1138,40 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       return;
     }
 
-    const normalizedOption = this.normalizeText(option);
+    const rawOption = option.trim();
+    const normalizedOption = this.normalizeText(rawOption);
 
-    if (normalizedOption === "1" || normalizedOption === "hoy") {
-      const today = this.getBogotaDate(0);
-      const appointments = await getAppointmentsByBarberAndDate(admin.barber, today);
+    if (admin.waitingForDate) {
+      const date = this.parseAdminDate(rawOption);
+
+      if (!date) {
+        await whatsappService.sendMessage(
+          to,
+          "❌ Fecha no válida.\n\nEscríbela así:\n16/05/2026"
+        );
+        return;
+      }
+
+      admin.waitingForDate = false;
+
+      const schedule = await getDailyScheduleByBarber(admin.barber, date);
 
       await whatsappService.sendMessage(
         to,
-        this.formatAppointmentsList(appointments, admin.name, "para hoy")
+        this.formatDailySchedule(schedule, admin.name, rawOption)
+      );
+
+      await this.sendBarberAdminMenu(to, admin.name);
+      return;
+    }
+
+    if (normalizedOption === "1" || normalizedOption === "hoy") {
+      const today = this.getBogotaDate(0);
+      const schedule = await getDailyScheduleByBarber(admin.barber, today);
+
+      await whatsappService.sendMessage(
+        to,
+        this.formatDailySchedule(schedule, admin.name, "hoy")
       );
 
       await this.sendBarberAdminMenu(to, admin.name);
@@ -1154,18 +1180,29 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
     if (normalizedOption === "2" || normalizedOption === "manana" || normalizedOption === "mañana") {
       const tomorrow = this.getBogotaDate(1);
-      const appointments = await getAppointmentsByBarberAndDate(admin.barber, tomorrow);
+      const schedule = await getDailyScheduleByBarber(admin.barber, tomorrow);
 
       await whatsappService.sendMessage(
         to,
-        this.formatAppointmentsList(appointments, admin.name, "para mañana")
+        this.formatDailySchedule(schedule, admin.name, "mañana")
       );
 
       await this.sendBarberAdminMenu(to, admin.name);
       return;
     }
 
-    if (normalizedOption === "3" || normalizedOption === "salir") {
+    if (normalizedOption === "3") {
+      admin.waitingForDate = true;
+
+      await whatsappService.sendMessage(
+        to,
+        "📅 Escribe la fecha que quieres consultar.\n\nFormato:\nDD/MM/AAAA\n\nEjemplo:\n16/05/2026"
+      );
+
+      return;
+    }
+
+    if (normalizedOption === "4" || normalizedOption === "salir") {
       delete this.barberAdminState[to];
 
       await whatsappService.sendMessage(
@@ -1218,10 +1255,42 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       to,
       `💈 Panel ${barberName}
 
-  1. Ver turnos de hoy
-  2. Ver turnos de mañana
-  3. Salir`
+  1. Ver agenda de hoy
+  2. Ver agenda de mañana
+  3. Buscar agenda por fecha
+  4. Salir`
     );
+  }
+  
+  parseAdminDate(value) {
+    const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+    if (!match) return null;
+
+    const day = String(match[1]).padStart(2, '0');
+    const month = String(match[2]).padStart(2, '0');
+    const year = match[3];
+
+    return `${year}-${month}-${day}`;
+  }
+
+  formatDailySchedule(schedule, barberName, label) {
+    if (!schedule.length) {
+      return `💈 Agenda ${barberName} - ${label}\n\nNo hay horarios configurados para este día.`;
+    }
+
+    let message = `💈 Agenda ${barberName} - ${label}\n\n`;
+
+    schedule.forEach(item => {
+      if (item.status === 'ocupado') {
+        message += `🔴 ${item.time} - ${item.name}\n`;
+        message += `📱 ${item.phone}\n\n`;
+      } else {
+        message += `🟢 ${item.time} - Libre\n`;
+      }
+    });
+
+    return message.trim();
   }
 }
 

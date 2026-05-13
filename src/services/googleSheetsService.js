@@ -326,6 +326,111 @@ const slotToMinutes = (slot) => {
   return hour * 60 + minutes;
 };
 
+export const getDailyScheduleByBarber = async (barber, date) => {
+  try {
+    const authClient = await getAuthClient();
+    const rows = await getSheetData(authClient);
+
+    const currentDate = new Date(`${date}T00:00:00`);
+    const day = currentDate.getDay();
+
+    let allSlots = [];
+
+    if (barber.toLowerCase().trim() === 'bolon') {
+      if (day === 3) {
+        allSlots = [
+          "1:30pm",
+          "2:05pm",
+          "2:40pm",
+          "3:15pm",
+          "3:50pm",
+          "4:25pm"
+        ];
+      } else {
+        allSlots = [
+          "9am",
+          "9:35am",
+          "10:10am",
+          "10:45am",
+          "11:20am",
+          "11:55am",
+          "1:30pm",
+          "2:05pm",
+          "2:40pm",
+          "3:15pm",
+          "3:50pm",
+          "4:25pm"
+        ];
+      }
+    }
+
+    if (barber.toLowerCase().trim() === 'julian') {
+      if (day === 0 || day === 3) {
+        return [];
+      }
+
+      allSlots = [
+        "9:40am",
+        "10:20am",
+        "11:00am",
+        "11:40am",
+        "12:20pm",
+        "1:00pm",
+        "2:30pm",
+        "3:10pm",
+        "3:50pm",
+        "4:30pm",
+        "5:10pm",
+        "5:50pm",
+        "6:30pm"
+      ];
+    }
+
+    const bookedAppointments = rows
+      .slice(1)
+      .filter(row => {
+        const savedDate = (row[0] || '').trim();
+        const savedBarber = (row[5] || '').toLowerCase().trim();
+        const savedStatus = (row[6] || '').toLowerCase().trim();
+
+        return (
+          savedDate === date &&
+          savedBarber === barber.toLowerCase().trim() &&
+          savedStatus === 'confirmado'
+        );
+      });
+
+    const schedule = allSlots.map(slot => {
+      const appointment = bookedAppointments.find(row => {
+        const savedTime = (row[2] || '').toLowerCase().trim();
+        return savedTime === slot.toLowerCase().trim();
+      });
+
+      if (appointment) {
+        return {
+          time: slot,
+          status: 'ocupado',
+          name: appointment[3] || '',
+          phone: appointment[4] || ''
+        };
+      }
+
+      return {
+        time: slot,
+        status: 'libre',
+        name: '',
+        phone: ''
+      };
+    });
+
+    return schedule.sort((a, b) => slotToMinutes(a.time) - slotToMinutes(b.time));
+
+  } catch (error) {
+    console.error('Error obteniendo agenda diaria del barbero:', error);
+    return [];
+  }
+};
+
 export const getUpcomingAppointmentsByPhone = async (phone) => {
     try {
     const authClient = await getAuthClient();
