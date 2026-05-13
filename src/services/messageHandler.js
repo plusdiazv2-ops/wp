@@ -24,13 +24,13 @@ class MessageHandler {
         password: "#diaz001#"
       },
 
-      "NUMERO_BOLON": {
+      "573146926477": {
         name: "Bolon",
         barber: "bolon",
         password: "#bolon001#"
       },
 
-      "NUMERO_JULIAN": {
+      "573002730493": {
         name: "Julian",
         barber: "julian",
         password: "#julian001#"
@@ -1261,7 +1261,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
   4. Salir`
     );
   }
-  
+
   parseAdminDate(value) {
     const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
 
