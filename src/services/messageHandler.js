@@ -5,19 +5,42 @@ import appendToSheet, {
   getUpcomingAppointmentsByPhone,
   updateAppointmentStatus,
   countUserAppointmentsSameDay,
+  getAppointmentsByBarberAndDate,
 } from './googleSheetsService.js';
 import geminiAiService from './geminiAiService.js';
+import { getAppointmentsByBarberAndDate } from './googleSheetsService.js';
 
 class MessageHandler {
   constructor() {
     this.appointmentState = {};
     this.assistantState = {};
     this.cancelState = {};
+    this.barberAdminState = {};
     this.barbers = ["Bolon", "Julian"];
+    this.barberAdmins = {
+      "573137127100": {
+        name: "Diaz",
+        barber: "bolon",
+        password: "#diaz001#"
+      },
+
+      "NUMERO_BOLON": {
+        name: "Bolon",
+        barber: "bolon",
+        password: "#bolon001#"
+      },
+
+      "NUMERO_JULIAN": {
+        name: "Julian",
+        barber: "julian",
+        password: "#julian001#"
+      }
+
+    };
     this.errorCount = {};
     this.barberPhones = {
       Bolon: "573146926477",
-      Julian: "3002730493"
+      Julian: "573002730493"
     };
 
     this.adminPhones = [
@@ -44,6 +67,7 @@ class MessageHandler {
     delete this.appointmentState[to];
     delete this.cancelState[to];
     delete this.assistantState[to];
+    delete this.barberAdminState[to];
     this.resetError(to);
   }
 
@@ -245,10 +269,37 @@ class MessageHandler {
         return;
       }
 
+      const admin = this.barberAdmins[to];
+
+      if (admin && message.text.body.trim() === admin.password) {
+        this.clearAllStates(to);
+
+        this.barberAdminState[to] = {
+          barber: admin.barber,
+          name: admin.name,
+          lastActivity: Date.now()
+        };
+
+        await whatsappService.sendMessage(
+          to,
+          `💈 Bienvenido ${admin.name}
+
+  Panel barbero:
+
+  1. Ver turnos de hoy
+  2. Ver turnos de mañana
+  3. Salir`
+        );
+
+        await whatsappService.markAsRead(message.id);
+        return;
+      }
+
       const activeState =
         this.appointmentState[to] ||
         this.cancelState[to] ||
-        this.assistantState[to];
+        this.assistantState[to] ||
+        this.barberAdminState[to];
 
       if (activeState && this.isSessionExpired(activeState)) {
         this.clearAllStates(to);
@@ -268,7 +319,11 @@ class MessageHandler {
         return;
       }
 
-      if (this.appointmentState[to]) {
+      if (this.barberAdminState[to]) {
+        this.barberAdminState[to].lastActivity = Date.now();
+        await this.handleBarberAdminFlow(to, message.text.body);
+
+      } else if (this.appointmentState[to]) {
         this.appointmentState[to].lastActivity = Date.now();
         await this.handleAppointmentFlow(to, message.text.body);
 
@@ -306,7 +361,8 @@ class MessageHandler {
       const activeState =
         this.appointmentState[to] ||
         this.cancelState[to] ||
-        this.assistantState[to];
+        this.assistantState[to] ||
+        this.barberAdminState[to];
 
       if (activeState && this.isSessionExpired(activeState)) {
         this.clearAllStates(to);
@@ -320,7 +376,11 @@ class MessageHandler {
         return;
       }
 
-      if (this.cancelState[to]) {
+      if (this.barberAdminState[to]) {
+        this.barberAdminState[to].lastActivity = Date.now();
+        await this.handleBarberAdminFlow(to, option);
+
+      } else if (this.cancelState[to]) {
         this.cancelState[to].lastActivity = Date.now();
         await this.handleCancelFlow(to, option);
 
@@ -1069,6 +1129,103 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
     return `${date} ${hh}:${mm}:00`;
   }
+
+  async handleBarberAdminFlow(to, option) {
+    const admin = this.barberAdminState[to];
+
+    if (!admin) {
+      await whatsappService.sendMessage(to, "No tienes una sesión activa de barbero.");
+      return;
+    }
+
+    const normalizedOption = this.normalizeText(option);
+
+    if (normalizedOption === "1" || normalizedOption === "hoy") {
+      const today = this.getBogotaDate(0);
+      const appointments = await getAppointmentsByBarberAndDate(admin.barber, today);
+
+      await whatsappService.sendMessage(
+        to,
+        this.formatAppointmentsList(appointments, admin.name, "para hoy")
+      );
+
+      await this.sendBarberAdminMenu(to, admin.name);
+      return;
+    }
+
+    if (normalizedOption === "2" || normalizedOption === "manana" || normalizedOption === "mañana") {
+      const tomorrow = this.getBogotaDate(1);
+      const appointments = await getAppointmentsByBarberAndDate(admin.barber, tomorrow);
+
+      await whatsappService.sendMessage(
+        to,
+        this.formatAppointmentsList(appointments, admin.name, "para mañana")
+      );
+
+      await this.sendBarberAdminMenu(to, admin.name);
+      return;
+    }
+
+    if (normalizedOption === "3" || normalizedOption === "salir") {
+      delete this.barberAdminState[to];
+
+      await whatsappService.sendMessage(
+        to,
+        "✅ Has salido del panel barbero."
+      );
+
+      return;
+    }
+
+    await whatsappService.sendMessage(
+      to,
+      "Opción no válida. Elige una opción del panel."
+    );
+
+    await this.sendBarberAdminMenu(to, admin.name);
+  }
+
+  getBogotaDate(daysToAdd = 0) {
+    const now = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
+    );
+
+    now.setDate(now.getDate() + daysToAdd);
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
+  formatAppointmentsList(appointments, barberName, label) {
+    if (!appointments.length) {
+      return `💈 ${barberName}, no tienes turnos ${label}.`;
+    }
+
+    let message = `💈 Turnos de ${barberName} ${label}:\n\n`;
+
+    appointments.forEach((appointment, index) => {
+      message += `${index + 1}. ${appointment.time} - ${appointment.name}\n`;
+      message += `📱 ${appointment.phone}\n\n`;
+    });
+
+    return message.trim();
+  }
+
+  async sendBarberAdminMenu(to, barberName) {
+    await whatsappService.sendMessage(
+      to,
+      `💈 Panel ${barberName}
+
+  1. Ver turnos de hoy
+  2. Ver turnos de mañana
+  3. Salir`
+    );
+  }
 }
+
+
 
 export default new MessageHandler();

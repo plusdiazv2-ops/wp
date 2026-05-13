@@ -538,4 +538,47 @@ export const markReminderAsSent = async (rowNumber) => {
   }
 };
 
+export const getAppointmentsByBarberAndDate = async (barber, date) => {
+  try {
+    const authClient = await getAuthClient();
+    const rows = await getSheetData(authClient);
+
+    if (!rows || rows.length < 2) return [];
+
+    const appointments = rows
+      .slice(1)
+      .filter(row => {
+        const savedDate = (row[0] || '').trim();
+        const savedTime = (row[2] || '').trim();
+        const savedName = (row[3] || '').trim();
+        const savedPhone = (row[4] || '').trim();
+        const savedBarber = (row[5] || '').toLowerCase().trim();
+        const savedStatus = (row[6] || '').toLowerCase().trim();
+
+        return (
+          savedDate === date &&
+          savedBarber === barber.toLowerCase().trim() &&
+          savedStatus === 'confirmado' &&
+          savedName &&
+          savedTime
+        );
+      })
+      .map(row => ({
+        date: row[0] || '',
+        displayDate: row[1] || '',
+        time: row[2] || '',
+        name: row[3] || '',
+        phone: row[4] || '',
+        barber: row[5] || '',
+        status: row[6] || '',
+      }))
+      .sort((a, b) => slotToMinutes(a.time) - slotToMinutes(b.time));
+
+    return appointments;
+  } catch (error) {
+    console.error('Error obteniendo citas por barbero y fecha:', error);
+    return [];
+  }
+};
+
 export default appendToSheet;
