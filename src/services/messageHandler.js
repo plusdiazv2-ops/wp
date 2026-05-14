@@ -282,16 +282,10 @@ class MessageHandler {
 
         await whatsappService.sendMessage(
           to,
-          `💈 Bienvenido ${admin.name}
-
-  Panel barbero:
-
-  1. Ver turnos de hoy
-  2. Ver turnos de mañana
-  3. Salir`
+          `💈 Bienvenido ${admin.name}`
         );
 
-        await whatsappService.markAsRead(message.id);
+        await this.sendBarberAdminMenu(to, admin.name);
         return;
       }
 
