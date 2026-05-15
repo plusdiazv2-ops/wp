@@ -46,9 +46,9 @@ class MessageHandler {
     this.errorCount = {};
     this.barberPhones = {
       Bolon: "573146926477",
-      Julian: "573002730493"
+      Julian: "573002730493",
+      "Diaz (Prueba)": "573137127100"
     };
-
     this.adminPhones = [
       "573146926477",
       "573125911132",
