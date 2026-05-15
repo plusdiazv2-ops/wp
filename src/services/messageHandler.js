@@ -18,11 +18,6 @@ class MessageHandler {
     this.barberAdminState = {};
     this.barbers = ["Bolon", "Julian", "Diaz (Prueba)"];
     this.barberAdmins = {
-      "573137127100": {
-        name: "Diaz",
-        barber: "bolon",
-        password: "#diaz001#"
-      },
 
       "573146926477": {
         name: "Bolon",
@@ -38,7 +33,7 @@ class MessageHandler {
 
       "573137127100": {
         name: "Diaz",
-        barber: "diaz (prueba)",
+        barber: "bolon",
         password: "#demo001#"
       },
 
@@ -415,7 +410,7 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
     const buttons = [
       { type: 'reply', reply: { id: '1', title: '📅 Agendar turno' } },
       { type: 'reply', reply: { id: '2', title: '❌ Cancelar turno' } },
-      { type: 'reply', reply: { id: '3', title: '📍 Ubicación' } },
+      { type: 'reply', reply: { id: '3', title: '📍 Ubicación y Contacto' } },
     ];
 
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
