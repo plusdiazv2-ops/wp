@@ -33,8 +33,8 @@ class MessageHandler {
 
       "573137127100": {
         name: "Diaz",
-        barber: "bolon",
-        password: "#demo001#"
+        barber: "diaz (prueba)",
+        password: "#diaz001#"
       },
 
     };
