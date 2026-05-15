@@ -407,10 +407,11 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
 
   async sendWelcomeMenu(to) {
     const menuMessage = "Elige una opción";
+
     const buttons = [
       { type: 'reply', reply: { id: '1', title: '📅 Agendar turno' } },
       { type: 'reply', reply: { id: '2', title: '❌ Cancelar turno' } },
-      { type: 'reply', reply: { id: '3', title: '📍 Ubicación y Contacto' } },
+      { type: 'reply', reply: { id: '3', title: '📍 Ubicación' } },
     ];
 
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
