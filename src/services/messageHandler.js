@@ -16,7 +16,7 @@ class MessageHandler {
     this.assistantState = {};
     this.cancelState = {};
     this.barberAdminState = {};
-    this.barbers = ["Bolon", "Julian"];
+    this.barbers = ["Bolon", "Julian", "Diaz (Prueba)"];
     this.barberAdmins = {
       "573137127100": {
         name: "Diaz",
@@ -34,7 +34,13 @@ class MessageHandler {
         name: "Julian",
         barber: "julian",
         password: "#julian001#"
-      }
+      },
+
+      "573137127100": {
+        name: "Diaz",
+        barber: "diaz (prueba)",
+        password: "#demo001#"
+      },
 
     };
     this.errorCount = {};

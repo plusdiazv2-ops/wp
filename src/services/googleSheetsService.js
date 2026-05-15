@@ -194,6 +194,23 @@ export const getAvailableSlots = async (barber, date) => {
       ];
     }
 
+    if (barber.toLowerCase().trim() === 'diaz (prueba)') {
+      allSlots = [
+        "9am",
+        "9:35am",
+        "10:10am",
+        "10:45am",
+        "11:20am",
+        "11:55am",
+        "1:30pm",
+        "2:05pm",
+        "2:40pm",
+        "3:15pm",
+        "3:50pm",
+        "4:25pm"
+      ];
+    }
+
     const occupied = rows
       .filter(row => {
         const savedDate = (row[0] || '').toLowerCase().trim();
