@@ -1280,7 +1280,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
     schedule.forEach(item => {
       if (item.status === 'ocupado') {
         message += `🔴 ${item.time} - ${item.name}\n`;
-        message += `📱 ${item.phone}\n\n`;
+        message += `📱 ${item.phone.replace(/^57/, '')}\n\n`;
       } else {
         message += `🟢 ${item.time} - Libre\n`;
       }
