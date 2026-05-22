@@ -1240,7 +1240,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
     appointments.forEach((appointment, index) => {
       message += `${index + 1}. ${appointment.time} - ${appointment.name}\n`;
-      message += `📱 ${appointment.phone}\n\n`;
+      message += `📱 ${appointment.phone.replace(/^57/, '')}\n\n`;
     });
 
     return message.trim();
