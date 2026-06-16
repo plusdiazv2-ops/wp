@@ -121,20 +121,14 @@ export const getAvailableSlots = async (barber, date) => {
 
     let allSlots = [];
 
-    // 🔥 Día de la semana
     const currentDate = new Date(`${date}T00:00:00`);
     const day = currentDate.getDay();
-    // 0 = domingo
-    // 3 = miércoles
 
     // =========================
     // 💈 BOLON
     // =========================
     if (barber.toLowerCase().trim() === 'bolon') {
-
-      // 🔥 Miércoles solo desde 1:30pm
       if (day === 3) {
-
         allSlots = [
           "1:30pm",
           "2:05pm",
@@ -143,10 +137,7 @@ export const getAvailableSlots = async (barber, date) => {
           "3:50pm",
           "4:25pm"
         ];
-
       } else {
-
-        // 🔥 Horario normal
         allSlots = [
           "9am",
           "9:35am",
@@ -154,7 +145,6 @@ export const getAvailableSlots = async (barber, date) => {
           "10:45am",
           "11:20am",
           "11:55am",
-
           "1:30pm",
           "2:05pm",
           "2:40pm",
@@ -162,7 +152,6 @@ export const getAvailableSlots = async (barber, date) => {
           "3:50pm",
           "4:25pm"
         ];
-
       }
     }
 
@@ -170,30 +159,60 @@ export const getAvailableSlots = async (barber, date) => {
     // 💈 JULIAN
     // =========================
     else if (barber.toLowerCase().trim() === 'julian') {
-
-      // ❌ NO trabaja miércoles ni domingo
-      if (day === 0 || day === 3) {
+      // Domingo no trabaja
+      if (day === 0) {
         return [];
       }
 
-      allSlots = [
-        "9:40am",
-        "10:20am",
-        "11:00am",
-        "11:40am",
-        "12:20pm",
-        "1:00pm",
+      // Miércoles solo trabaja en la mañana
+      if (day === 3) {
+        allSlots = [
+          "9:40am",
+          "10:20am",
+          "11:00am",
+          "11:40am",
+          "12:20pm",
+          "1:00pm"
+        ];
+      }
 
-        "2:30pm",
-        "3:10pm",
-        "3:50pm",
-        "4:30pm",
-        "5:10pm",
-        "5:50pm",
-        "6:30pm"
-      ];
+      // Martes trabaja hasta las 4:40pm
+      else if (day === 2) {
+        allSlots = [
+          "9:40am",
+          "10:20am",
+          "11:00am",
+          "11:40am",
+          "12:20pm",
+          "1:00pm",
+          "2:30pm",
+          "3:20pm",
+          "4:00pm",
+          "4:40pm"
+        ];
+      }
+
+      // Lunes, jueves, viernes y sábado hasta las 5:20pm
+      else {
+        allSlots = [
+          "9:40am",
+          "10:20am",
+          "11:00am",
+          "11:40am",
+          "12:20pm",
+          "1:00pm",
+          "2:30pm",
+          "3:20pm",
+          "4:00pm",
+          "4:40pm",
+          "5:20pm"
+        ];
+      }
     }
 
+    // =========================
+    // 💈 LADINO
+    // =========================
     else if (barber.toLowerCase().trim() === 'ladino') {
       // Domingo no trabaja
       if (day === 0) {
@@ -216,6 +235,7 @@ export const getAvailableSlots = async (barber, date) => {
     }
 
     const occupied = rows
+      .slice(1)
       .filter(row => {
         const savedDate = (row[0] || '').toLowerCase().trim();
         const savedBarber = (row[5] || '').toLowerCase().trim();
@@ -257,24 +277,13 @@ export const getAvailableSlots = async (barber, date) => {
     if (selectedDate === today) {
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-      const slotToMinutes = (slot) => {
-        const match = slot.toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
-        if (!match) return -1;
-
-        let hour = parseInt(match[1], 10);
-        const minutes = match[2] ? parseInt(match[2], 10) : 0;
-        const period = match[3];
-
-        if (period === 'pm' && hour !== 12) hour += 12;
-        if (period === 'am' && hour === 12) hour = 0;
-
-        return hour * 60 + minutes;
-      };
-
-      available = available.filter(slot => slotToMinutes(slot) > currentMinutes);
+      available = available.filter(slot =>
+        slotToMinutes(slot) > currentMinutes
+      );
     }
 
     return available;
+
   } catch (error) {
     console.error('Error obteniendo horarios disponibles:', error);
     return [];
