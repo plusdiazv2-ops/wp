@@ -31,10 +31,10 @@ class MessageHandler {
         password: "#julian001#"
       },
 
-      "573137127100": {
+      "573215342867": {
         name: "Ladino",
         barber: "ladino",
-        password: "ladino001"
+        password: "Ladino001"
       },
 
     };
@@ -42,12 +42,12 @@ class MessageHandler {
     this.barberPhones = {
       Bolon: "573146926477",
       Julian: "573002730493",
-      Ladino: "573137127100"
+      Ladino: "573215342867"
     };
     this.adminPhones = [
       "573146926477",
-      "573125911132",
-      "573137127100"
+      "573002730493",
+      "573215342867"
     ];
   }
 
