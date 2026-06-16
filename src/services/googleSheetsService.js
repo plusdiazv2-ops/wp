@@ -382,41 +382,76 @@ export const getDailyScheduleByBarber = async (barber, date) => {
     }
 
     if (barber.toLowerCase().trim() === 'julian') {
-      if (day === 0 || day === 3) {
+      // Domingo no trabaja
+      if (day === 0) {
         return [];
       }
 
-      allSlots = [
-        "9:40am",
-        "10:20am",
-        "11:00am",
-        "11:40am",
-        "12:20pm",
-        "1:00pm",
-        "2:30pm",
-        "3:10pm",
-        "3:50pm",
-        "4:30pm",
-        "5:10pm",
-        "5:50pm",
-        "6:30pm"
-      ];
+      // Miércoles solo trabaja en la mañana
+      if (day === 3) {
+        allSlots = [
+          "9:40am",
+          "10:20am",
+          "11:00am",
+          "11:40am",
+          "12:20pm",
+          "1:00pm"
+        ];
+      }
+
+      // Martes trabaja hasta las 4:40pm
+      else if (day === 2) {
+        allSlots = [
+          "9:40am",
+          "10:20am",
+          "11:00am",
+          "11:40am",
+          "12:20pm",
+          "1:00pm",
+          "2:30pm",
+          "3:20pm",
+          "4:00pm",
+          "4:40pm"
+        ];
+      }
+
+      // Lunes, jueves, viernes y sábado hasta las 5:20pm
+      else {
+        allSlots = [
+          "9:40am",
+          "10:20am",
+          "11:00am",
+          "11:40am",
+          "12:20pm",
+          "1:00pm",
+          "2:30pm",
+          "3:20pm",
+          "4:00pm",
+          "4:40pm",
+          "5:20pm"
+        ];
+      }
     }
 
-    if (barber.toLowerCase().trim() === 'diaz (prueba)') {
+    if (barber.toLowerCase().trim() === 'ladino') {
+      // Domingo no trabaja
+      if (day === 0) {
+        return [];
+      }
+
+      // Lunes a sábado
       allSlots = [
-        "9am",
-        "9:35am",
-        "10:10am",
-        "10:45am",
-        "11:20am",
-        "11:55am",
-        "1:30pm",
-        "2:05pm",
-        "2:40pm",
-        "3:15pm",
-        "3:50pm",
-        "4:25pm"
+        "10:30am",
+        "11:10am",
+        "11:50am",
+        "12:30pm",
+        "1:10pm",
+        "3:00pm",
+        "3:40pm",
+        "4:20pm",
+        "5:00pm",
+        "5:40pm",
+        "6:20pm"
       ];
     }
 
