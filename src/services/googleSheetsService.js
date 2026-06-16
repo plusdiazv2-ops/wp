@@ -194,20 +194,24 @@ export const getAvailableSlots = async (barber, date) => {
       ];
     }
 
-    if (barber.toLowerCase().trim() === 'diaz (prueba)') {
+    else if (barber.toLowerCase().trim() === 'ladino') {
+      // Domingo no trabaja
+      if (day === 0) {
+        return [];
+      }
+
       allSlots = [
-        "9am",
-        "9:35am",
-        "10:10am",
-        "10:45am",
-        "11:20am",
-        "11:55am",
-        "1:30pm",
-        "2:05pm",
-        "2:40pm",
-        "3:15pm",
-        "3:50pm",
-        "4:25pm"
+        "10:30am",
+        "11:10am",
+        "11:50am",
+        "12:30pm",
+        "1:10pm",
+        "3:00pm",
+        "3:40pm",
+        "4:20pm",
+        "5:00pm",
+        "5:40pm",
+        "6:20pm"
       ];
     }
 
@@ -225,7 +229,9 @@ export const getAvailableSlots = async (barber, date) => {
       })
       .map(row => (row[2] || '').toLowerCase().trim());
 
-    let available = allSlots.filter(slot => !occupied.includes(slot));
+    let available = allSlots.filter(slot =>
+      !occupied.includes(slot.toLowerCase().trim())
+    );
 
     const now = new Date(
       new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
