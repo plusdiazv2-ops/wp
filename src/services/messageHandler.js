@@ -837,13 +837,21 @@ Si necesitas cancelar tu turno:
       }
 
       case 'date': {
-        const cleanInput = message.trim();
-        const optionsCount = state.availableDates?.length || 0;
+        const dates = state.availableDates || [];
+        const choice = this.resolveChoice(message, dates, 'fecha');
 
-        const navHandled = await this.handleNavigationNumber(to, cleanInput, optionsCount);
-        if (navHandled) return;
+        if (choice.type === 'back') {
+          await this.handleBack(to);
+          return;
+        }
 
-        if (!/^\d+$/.test(cleanInput)) {
+        if (choice.type === 'menu') {
+          this.clearAllStates(to);
+          await this.sendMainMenu(to);
+          return;
+        }
+
+        if (choice.type !== 'option') {
           if (this.incrementError(to)) {
             await whatsappService.sendMessage(
               to,
@@ -852,36 +860,15 @@ Si necesitas cancelar tu turno:
             return;
           }
 
-          await whatsappService.sendMessage(
+          await this.sendDateOptions(
             to,
-            `❌ Respuesta inválida. Escribe solo el número de la fecha que deseas.\nEjemplo: 1${this.buildNavigationFooter(optionsCount)}`
+            state,
+            '❌ No entendí esa opción.\n\n📅 Selecciona una fecha de la lista:'
           );
           return;
         }
 
-        const selectedIndex = parseInt(cleanInput, 10) - 1;
-
-        if (
-          !state.availableDates ||
-          selectedIndex < 0 ||
-          selectedIndex >= state.availableDates.length
-        ) {
-          if (this.incrementError(to)) {
-            await whatsappService.sendMessage(
-              to,
-              "❌ Parece que hay un error.\nEscribe *menu* para empezar de nuevo."
-            );
-            return;
-          }
-
-          await whatsappService.sendMessage(
-            to,
-            `❌ Opción inválida. Responde solo con el número de una fecha de la lista.${this.buildNavigationFooter(optionsCount)}`
-          );
-          return;
-        }
-
-        const selectedDate = state.availableDates[selectedIndex];
+        const selectedDate = dates[choice.index];
 
         if (!selectedDate.hasAvailability) {
           if (this.incrementError(to)) {
@@ -892,9 +879,10 @@ Si necesitas cancelar tu turno:
             return;
           }
 
-          await whatsappService.sendMessage(
+          await this.sendDateOptions(
             to,
-            `❌ ${selectedDate.label} no tiene turnos disponibles. Elige otra fecha.${this.buildNavigationFooter(optionsCount)}`
+            state,
+            `❌ ${selectedDate.label} no tiene turnos disponibles.\n\n📅 Elige otro día:`
           );
           return;
         }
@@ -905,10 +893,24 @@ Si necesitas cancelar tu turno:
 
         const availableSlots = await getAvailableSlots(state.barber, state.date);
 
+        // Entre que se pintó la lista y el cliente escogió pueden pasar
+        // minutos, y alguien más pudo tomar el último turno.
         if (availableSlots.length === 0) {
-          await whatsappService.sendMessage(
+          // Se marca ese día como lleno en la lista ya guardada, para que el
+          // cliente no lo vuelva a elegir en bucle.
+          //
+          // A propósito NO se vuelve a consultar la agenda: regenerar las
+          // fechas son 7 lecturas más de Google Sheets, y este camino se
+          // dispara justo cuando Sheets puede estar fallando — getSheetData()
+          // devuelve [] cuando hay error, así que un fallo de lectura llega
+          // aquí disfrazado de "no quedan turnos" (punto 4 del backlog).
+          selectedDate.hasAvailability = false;
+          selectedDate.availableCount = 0;
+
+          await this.sendDateOptions(
             to,
-            `❌ No hay horarios disponibles para ${state.displayDate}.${this.buildNavigationFooter(optionsCount)}`
+            state,
+            `❌ ${state.displayDate} ya no tiene turnos libres.\n\n📅 Elige otro día:`
           );
           return;
         }
@@ -1171,7 +1173,8 @@ Si necesitas cancelar tu turno:
         dates.push({
           value: isoDate,
           label: this.formatDisplayDate(isoDate),
-          hasAvailability: slots.length > 0
+          hasAvailability: slots.length > 0,
+          availableCount: slots.length
         });
       }
 
@@ -1216,23 +1219,52 @@ Si necesitas cancelar tu turno:
     });
   }
 
-  async sendDateOptions(to, state) {
-    const nextDates = await this.generateNextAvailableDates(state.barber);
-    state.availableDates = nextDates;
+  // "Lunes 10 de agosto" → "Lunes 10", para que quepa en el título de la fila
+  // (tope 24 caracteres). La fecha completa va en la descripción.
+  formatShortDate(dateString) {
+    return this.formatDisplayDate(dateString).split(' de ')[0];
+  }
 
-    let dateMessage = `✅ Perfecto, *${state.name}*.\nHas elegido a *${state.barber}* 💈\n\n📅 Selecciona una fecha disponible:\n\n`;
+  async sendDateOptions(to, state, customBody = null) {
+    // Generar las fechas son 7 lecturas completas de Google Sheets. Cuando la
+    // lista se reenvía por un error, se reutiliza lo ya consultado.
+    if (!customBody || !state.availableDates) {
+      state.availableDates = await this.generateNextAvailableDates(state.barber);
+    }
 
-    nextDates.forEach((d, index) => {
-      dateMessage += `${index + 1}️⃣ ${d.label}`;
-      if (!d.hasAvailability) {
-        dateMessage += ` ❌`;
-      }
-      dateMessage += `\n`;
+    const nextDates = state.availableDates;
+    const total = nextDates.length;
+
+    const rows = nextDates.map((date, index) => {
+      const turnos = date.availableCount === 1
+        ? '1 turno libre'
+        : `${date.availableCount} turnos libres`;
+
+      return {
+        id: `fecha_${date.value}`,
+        title: `${index + 1}. ${this.formatShortDate(date.value)}`,
+        description: date.hasAvailability
+          ? `${date.label} · ${turnos}`
+          : `${date.label} · ❌ sin cupos`,
+      };
     });
 
-    dateMessage += this.buildNavigationFooter(nextDates.length);
-
-    await whatsappService.sendMessage(to, dateMessage);
+    await this.sendOptionList(to, {
+      body: customBody
+        || `✅ Perfecto, *${state.name}*.\nHas elegido a *${state.barber}* 💈\n\n📅 Selecciona una fecha disponible:`,
+      buttonText: 'Elegir fecha',
+      sections: [
+        { title: 'PRÓXIMOS DÍAS', rows },
+        {
+          title: 'MÁS OPCIONES',
+          rows: [
+            { id: 'nav_volver', title: `${total + 1}. ⬅️ Volver` },
+            { id: 'nav_menu', title: `${total + 2}. 🏠 Menú principal`, optional: true },
+          ],
+        },
+      ],
+      footer: 'También puedes escribir el número',
+    });
   }
 
   async sendTimeOptions(to, state) {
