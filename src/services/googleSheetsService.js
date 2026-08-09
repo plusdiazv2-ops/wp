@@ -135,7 +135,9 @@ export const getAvailableSlots = async (barber, date) => {
           "2:40pm",
           "3:15pm",
           "3:50pm",
-          "4:25pm"
+          "4:25pm",
+          "5:00pm",
+          "5:35pm"
         ];
       } else {
         allSlots = [
@@ -150,7 +152,9 @@ export const getAvailableSlots = async (barber, date) => {
           "2:40pm",
           "3:15pm",
           "3:50pm",
-          "4:25pm"
+          "4:25pm",
+          "5:00pm",
+          "5:35pm"
         ];
       }
     }
@@ -376,7 +380,9 @@ export const getDailyScheduleByBarber = async (barber, date) => {
           "2:40pm",
           "3:15pm",
           "3:50pm",
-          "4:25pm"
+          "4:25pm",
+          "5:00pm",
+          "5:35pm"
         ];
       } else {
         allSlots = [
@@ -391,7 +397,9 @@ export const getDailyScheduleByBarber = async (barber, date) => {
           "2:40pm",
           "3:15pm",
           "3:50pm",
-          "4:25pm"
+          "4:25pm",
+          "5:00pm",
+          "5:35pm"
         ];
       }
     }
