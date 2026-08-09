@@ -10,7 +10,8 @@ significa turnos perdidos o clientes que no pueden agendar.
 
 **Reglas no negociables:**
 
-1. **Nunca trabajes sobre `main`.** Siempre rama nueva: `git checkout -b fix/lo-que-sea`
+1. **Nunca trabajes sobre la rama principal.** Aquí se llama **`master`** (no `main`).
+   Siempre rama nueva: `git checkout -b fix/lo-que-sea`
 2. **Nunca reescribas un archivo completo.** Solo ediciones puntuales sobre las
    líneas que hay que cambiar. Si crees que hace falta reescribir un archivo,
    pregúntame primero y explícame por qué.
@@ -67,8 +68,14 @@ Si te pido cambiar un horario y solo tocas una, el bot va a mostrar cosas
 distintas al cliente y al barbero. Esto ya pasó antes.
 
 Reglas por barbero (resumen — la fuente de verdad es el código):
-- **Bolon:** miércoles solo tarde; resto del día completo con almuerzo 11:55am–1:30pm
-- **Julian:** no trabaja domingos; miércoles solo mañana; martes hasta 4:40pm; resto hasta 5:20pm
+- **Bolon:** miércoles solo tarde; resto del día completo. **Sí tiene turnos el domingo**
+  en el código (a diferencia de los otros dos); al cliente no le aparece porque las
+  fechas ofrecidas saltan los domingos, pero el panel de Bolon sí muestra agenda ese día.
+  El último turno de la mañana es **11:55am** y el primero de la tarde **1:30pm**
+  (o sea: 11:55am sí se ofrece; el almuerzo empieza después de ese turno).
+- **Julian:** no trabaja domingos; martes hasta 4:40pm; resto hasta 5:20pm.
+  El miércoles trabaja jornada corta — **hasta la 1:00pm**, no "solo mañana":
+  la lista incluye 12:20pm y 1:00pm.
 - **Ladino:** no trabaja domingos; mismo horario todos los días hábiles, hasta 6:20pm
 
 ## Flujo del cliente
@@ -83,14 +90,28 @@ Reglas por barbero (resumen — la fuente de verdad es el código):
 Al confirmar: guarda fila en Sheets → envía template `nuevo_turno_barbero` al
 barbero → envía confirmación al cliente.
 
-**Navegación global** (funciona en cualquier paso):
-- Escribir `menu` → vuelve al inicio
-- Escribir `volver` o `atras` → paso anterior
-- Escribir `cancelar` o `salir` → abandona el flujo
-- Numéricamente: opción **N+1 = Volver**, **N+2 = Menú principal**
-  (donde N es la cantidad de opciones de esa pantalla)
+**Navegación global** — ⚠️ **no funciona en todos los pasos.** Estado real hoy:
 
-**Sesión:** expira a los 10 minutos de inactividad. 3 errores seguidos resetean el flujo.
+- Escribir `menu` → vuelve al inicio. **Este sí funciona siempre**, incluso dentro del
+  panel del barbero (lo saca del panel al menú de cliente sin avisarle).
+- Escribir `volver` o `atras` → paso anterior. Funciona en barbero, fecha, hora y en
+  la confirmación de cancelación. **NO funciona en el paso del nombre** — ahí el texto
+  "volver" **se guarda como el nombre del cliente** (bug conocido, pendiente).
+  Tampoco funciona en el panel del barbero.
+- Escribir `cancelar` o `salir` → abandona el flujo. Funciona en los flujos de cliente.
+  En el panel del barbero, `salir` funciona como opción 4, pero `cancelar` no hace nada.
+- Numéricamente: opción **N+1 = Volver**, **N+2 = Menú principal**
+  (donde N es la cantidad de opciones de esa pantalla).
+  Excepción: el paso del nombre ofrece un **5️⃣ quemado** que no sigue la convención.
+
+**Sesión:** expira a los 10 minutos de inactividad — pero eso **solo se detecta cuando
+el cliente vuelve a escribir**. No hay limpieza automática de sesiones abandonadas.
+
+**Errores:** al tercer error seguido el bot responde *"Parece que hay un error, escribe
+menu para empezar de nuevo"* y pone el contador en cero — pero ⚠️ **no resetea el flujo**:
+el cliente sigue parado exactamente en el mismo paso. Además ese contador solo está
+conectado en los pasos **barbero, fecha y hora**; no existe en el paso del nombre, ni en
+el flujo de cancelación, ni en el panel del barbero.
 
 **Límite:** máximo 2 turnos por día por número de teléfono. Los números de los
 barberos (`adminPhones`) no tienen límite.
@@ -101,9 +122,9 @@ Se activa cuando el barbero escribe **su contraseña exacta** desde su número
 registrado (definidas en `this.barberAdmins`). Opciones:
 
 ```
-1. Agenda de hoy
-2. Agenda de mañana
-3. Buscar por fecha (DD/MM/AAAA)
+1. Ver agenda de hoy
+2. Ver agenda de mañana
+3. Buscar agenda por fecha (DD/MM/AAAA)
 4. Salir
 ```
 
@@ -137,6 +158,21 @@ Hay filas históricas con este problema (ver columna I, mezcla `2026-04-29` con 
 `reminderService.js` busca turnos donde falten **entre 55 y 65 minutos**.
 Esto implica que el cron debe correr **al menos cada 10 minutos**, o se saltan
 recordatorios. Si tocas esa ventana, revisa la frecuencia del cron.
+
+Hoy el cron corre **cada 5 minutos** (`app.js`, `cron.schedule('*/5 * * * *')`).
+La regla se cumple con margen.
+
+## Webhook de Meta
+
+`webhookController.js` responde **200 a Meta después de procesar todo el mensaje**
+(el `res.sendStatus(200)` está debajo del `await`). Meta queda esperando mientras
+corren las lecturas de Sheets y los envíos de WhatsApp.
+
+**No hay deduplicación por `message.id`.** Si Meta no recibe el 200 a tiempo, reenvía
+el mismo mensaje y el bot lo procesa de nuevo como si fuera nuevo.
+
+El paso más lento es elegir barbero: dispara 7 lecturas completas de la hoja antes
+de responder. Ver el apartado de riesgos latentes en `MEJORAS.md`.
 
 ## Zona horaria
 
