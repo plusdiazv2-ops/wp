@@ -241,15 +241,24 @@ class MessageHandler {
     return false;
   }
 
+  // El emoji de número solo existe para un dígito (1️⃣ … 9️⃣).
+  // Del 10 en adelante se arma pegando un emoji por cada cifra: 12 → 1️⃣2️⃣
+  numberToEmoji(number) {
+    return String(number)
+      .split('')
+      .map(digit => `${digit}️⃣`)
+      .join('');
+  }
+
   buildNavigationFooter(optionsCount, showBack = true, showMenu = true) {
     let footer = '';
 
     if (showBack) {
-      footer += `\n${optionsCount + 1}️⃣ Volver`;
+      footer += `\n${this.numberToEmoji(optionsCount + 1)} Volver`;
     }
 
     if (showMenu) {
-      footer += `\n${optionsCount + 2}️⃣ Menú principal`;
+      footer += `\n${this.numberToEmoji(optionsCount + 2)} Menú principal`;
     }
 
     footer += `\n\nTambién puedes escribir *volver* o *menu*.`;
@@ -1000,7 +1009,7 @@ Si necesitas cancelar tu turno:
     let text = `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:\n\n`;
 
     state.availableSlots.forEach((slot, index) => {
-      text += `${index + 1}️⃣ ${slot}\n`;
+      text += `${this.numberToEmoji(index + 1)} ${slot}\n`;
     });
 
     text += this.buildNavigationFooter(state.availableSlots.length);
@@ -1012,7 +1021,7 @@ Si necesitas cancelar tu turno:
     let message = `📋 *Estos son tus turnos próximos:*\n\n`;
 
     appointments.forEach((appointment, index) => {
-      message += `${index + 1}️⃣ *${appointment.displayDate}* - ${appointment.time}\n`;
+      message += `${this.numberToEmoji(index + 1)} *${appointment.displayDate}* - ${appointment.time}\n`;
       message += `💈 Barbero: ${appointment.barber}\n\n`;
     });
 
