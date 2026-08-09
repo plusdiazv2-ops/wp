@@ -384,6 +384,24 @@ class MessageHandler {
         this.barberAdminState[to].lastActivity = Date.now();
         await this.handleBarberAdminFlow(to, option);
 
+      } else if (this.appointmentState[to]) {
+        // Durante el agendamiento el bot solo manda texto, nunca botones.
+        // Entonces un mensaje interactivo aquí SIEMPRE viene de un menú viejo
+        // que quedó más arriba en el chat.
+        //
+        // Antes esto caía en handleMenuOption() y descuadraba el flujo. El caso
+        // peor era tocar "Cancelar turno": creaba cancelState mientras
+        // appointmentState seguía vivo, y como la rama de texto revisa
+        // appointmentState primero, el cliente veía la lista de turnos para
+        // cancelar, escribía "1" creyendo que cancelaba, y el bot lo leía como
+        // "elegí al barbero 1". Creía haber cancelado sin cancelar nada.
+        this.appointmentState[to].lastActivity = Date.now();
+
+        await whatsappService.sendMessage(
+          to,
+          '⚠️ Esa opción es de un menú anterior.\n\nSigue donde ibas escribiendo tu respuesta, o escribe *menu* para empezar de nuevo.'
+        );
+
       } else if (this.cancelState[to]) {
         this.cancelState[to].lastActivity = Date.now();
         await this.handleCancelFlow(to, option);
