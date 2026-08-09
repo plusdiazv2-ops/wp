@@ -110,19 +110,32 @@ class WhatsAppService {
     await sendToWhatsApp(data);
   }
 
-  async sendListMessage(to, body, buttonText, sections) {
+  // header y footer son opcionales, para no romper las llamadas existentes.
+  // ⚠️ El encabezado de una lista solo acepta texto: WhatsApp no permite
+  // imágenes aquí (a diferencia de los mensajes con botones).
+  async sendListMessage(to, body, buttonText, sections, header, footer) {
+    const interactive = {
+      type: 'list',
+      body: { text: body },
+      action: {
+        button: buttonText,
+        sections: sections,
+      },
+    };
+
+    if (header) {
+      interactive.header = { type: 'text', text: header };
+    }
+
+    if (footer) {
+      interactive.footer = { text: footer };
+    }
+
     const data = {
       messaging_product: 'whatsapp',
       to,
       type: 'interactive',
-      interactive: {
-        type: 'list',
-        body: { text: body },
-        action: {
-          button: buttonText,
-          sections: sections,
-        },
-      },
+      interactive,
     };
 
     await sendToWhatsApp(data);

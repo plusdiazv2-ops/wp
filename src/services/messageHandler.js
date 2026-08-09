@@ -241,6 +241,102 @@ class MessageHandler {
     return false;
   }
 
+  // Topes de WhatsApp para listas interactivas.
+  // ⚠️ Pasarse de CUALQUIERA de estos hace que Meta rechace el mensaje entero
+  // y el cliente NO RECIBE NADA. No es que se vea feo: no llega, y el bot
+  // no se entera. Por eso todo lo que arma una lista pasa por aquí.
+  get listLimits() {
+    return {
+      rows: 10,          // en total, no por sección
+      rowTitle: 24,
+      rowDescription: 72,
+      rowId: 200,
+      sectionTitle: 24,
+      button: 20,
+      header: 60,
+      body: 1024,
+      footer: 60,
+    };
+  }
+
+  cutText(text, max) {
+    const clean = String(text ?? '').trim();
+    if (clean.length <= max) return clean;
+    return clean.slice(0, max - 1).trim() + '…';
+  }
+
+  /**
+   * Arma y envía una lista respetando los topes de WhatsApp.
+   *
+   * sections: [{ title, rows: [{ id, title, description, optional }] }]
+   *
+   * Las filas marcadas `optional: true` (la de "Menú principal") son las
+   * primeras en sacrificarse si el mensaje se pasa de 10 filas. Se pierde
+   * poco: "menu" sigue funcionando como comando escrito.
+   */
+  async sendOptionList(to, { header, body, buttonText, sections, footer }) {
+    const limits = this.listLimits;
+
+    let rows = [];
+    (sections || []).forEach((section, sectionIndex) => {
+      (section.rows || []).forEach(row => {
+        rows.push({ ...row, sectionIndex });
+      });
+    });
+
+    // 1. Si sobran filas, se sacrifican primero las opcionales.
+    if (rows.length > limits.rows) {
+      rows = rows.filter(row => !row.optional);
+    }
+
+    // 2. Si aún sobran, se recorta. Mostrar de menos es malo; que el cliente
+    //    no reciba nada es peor. Queda en los logs de Railway para saberlo.
+    if (rows.length > limits.rows) {
+      console.error(
+        `⚠️ Lista de ${rows.length} filas para ${to}: se recorta a ${limits.rows}. ` +
+        `Esta pantalla hay que partirla en dos.`
+      );
+      rows = rows.slice(0, limits.rows);
+    }
+
+    // 3. Si no quedó ninguna fila no se puede enviar una lista, pero el
+    //    cliente no se puede quedar sin respuesta.
+    if (rows.length === 0) {
+      console.error(`⚠️ Lista sin filas para ${to}. Se envía como texto.`);
+      await whatsappService.sendMessage(to, body);
+      return;
+    }
+
+    const finalSections = (sections || [])
+      .map((section, sectionIndex) => ({
+        title: this.cutText(section.title, limits.sectionTitle),
+        rows: rows
+          .filter(row => row.sectionIndex === sectionIndex)
+          .map(row => {
+            const built = {
+              id: this.cutText(row.id, limits.rowId),
+              title: this.cutText(row.title, limits.rowTitle),
+            };
+
+            if (row.description) {
+              built.description = this.cutText(row.description, limits.rowDescription);
+            }
+
+            return built;
+          }),
+      }))
+      .filter(section => section.rows.length > 0);
+
+    await whatsappService.sendListMessage(
+      to,
+      this.cutText(body, limits.body),
+      this.cutText(buttonText, limits.button),
+      finalSections,
+      header ? this.cutText(header, limits.header) : undefined,
+      footer ? this.cutText(footer, limits.footer) : undefined
+    );
+  }
+
   // El emoji de número solo existe para un dígito (1️⃣ … 9️⃣).
   // Del 10 en adelante se arma pegando un emoji por cada cifra: 12 → 1️⃣2️⃣
   numberToEmoji(number) {
