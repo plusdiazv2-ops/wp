@@ -397,6 +397,34 @@ class MessageHandler {
       }
 
       await whatsappService.markAsRead(message.id);
+
+    } else if (
+      message?.from &&
+      message?.type &&
+      message.type !== 'reaction' &&
+      message.type !== 'system'
+    ) {
+      // Audio, imagen, sticker, ubicación, documento...
+      // Antes de esto el bot no respondía absolutamente nada y el cliente
+      // quedaba esperando una respuesta que nunca llegaba.
+      // Las reacciones y los avisos del sistema se ignoran a propósito:
+      // no son una pregunta del cliente.
+      const to = message.from;
+
+      const hasActiveFlow =
+        this.appointmentState[to] ||
+        this.cancelState[to] ||
+        this.assistantState[to] ||
+        this.barberAdminState[to];
+
+      await whatsappService.sendMessage(
+        to,
+        hasActiveFlow
+          ? '🙏 Por ahora solo puedo leer mensajes de *texto*.\n\nSigue donde ibas escribiendo tu respuesta, o escribe *menu* para empezar de nuevo.'
+          : '🙏 Por ahora solo puedo leer mensajes de *texto*.\n\nEscribe *menu* para ver las opciones disponibles.'
+      );
+
+      await whatsappService.markAsRead(message.id);
     }
   }
 
