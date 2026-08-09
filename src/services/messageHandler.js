@@ -266,6 +266,18 @@ class MessageHandler {
     return footer;
   }
 
+  // WhatsApp manda el id de la opción elegida en un campo distinto según de
+  // dónde venga: button_reply si el cliente tocó un botón, list_reply si tocó
+  // una fila de una lista. Antes solo se leía el primero, así que las listas
+  // llegaban y el bot las ignoraba por completo.
+  getInteractiveId(message) {
+    return (
+      message?.interactive?.button_reply?.id ||
+      message?.interactive?.list_reply?.id ||
+      null
+    );
+  }
+
   async handleIncomingMessage(message, senderInfo) {
     if (message?.type === 'text') {
       const incomingMessage = this.normalizeText(message.text.body);
@@ -360,7 +372,18 @@ class MessageHandler {
 
     } else if (message?.type === 'interactive') {
       const to = message.from;
-      const option = message?.interactive?.button_reply?.id;
+      const option = this.getInteractiveId(message);
+
+      // Sin id no se puede hacer nada, y dejarlo pasar rompía el panel del
+      // barbero: handleBarberAdminFlow() hace option.trim() y reventaba.
+      if (!option) {
+        await whatsappService.sendMessage(
+          to,
+          'No pude leer esa opción. Escribe *menu* para ver las opciones disponibles.'
+        );
+        await whatsappService.markAsRead(message.id);
+        return;
+      }
 
       const activeState =
         this.appointmentState[to] ||
