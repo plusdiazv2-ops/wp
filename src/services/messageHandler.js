@@ -241,6 +241,53 @@ class MessageHandler {
     return false;
   }
 
+  // Los id de las pantallas del flujo llevan prefijo con nombre
+  // (barbero_bolon, nav_volver). Los del menú principal son '1','2','3'
+  // desde siempre. Así se distingue una respuesta de la pantalla actual
+  // de un botón viejo que quedó arriba en el chat.
+  isFlowOption(option) {
+    return /^(barbero|fecha|jornada|hora|cancelar|nav)_/.test(String(option || ''));
+  }
+
+  /**
+   * Traduce lo que llegó a la opción elegida, venga como toque en una lista
+   * o como número escrito. Los dos caminos tienen que funcionar igual.
+   *
+   * options: [{ value, label }] en el mismo orden en que se mostraron.
+   * Devuelve { type: 'option' | 'back' | 'menu' | 'invalid', index }
+   */
+  resolveChoice(input, options, prefix) {
+    const raw = String(input ?? '').trim().toLowerCase();
+
+    if (raw === 'nav_volver') return { type: 'back' };
+    if (raw === 'nav_menu') return { type: 'menu' };
+
+    // Tocó una fila de la lista: barbero_bolon, hora_5:00pm, fecha_2026-08-10
+    if (raw.startsWith(`${prefix}_`)) {
+      const value = raw.slice(prefix.length + 1);
+      const index = options.findIndex(
+        option => String(option.value).toLowerCase() === value
+      );
+
+      return index >= 0 ? { type: 'option', index } : { type: 'invalid' };
+    }
+
+    // Respaldo escrito: el número, con la convención de siempre
+    // (N+1 = Volver, N+2 = Menú principal).
+    if (/^\d+$/.test(raw)) {
+      const number = parseInt(raw, 10);
+
+      if (number >= 1 && number <= options.length) {
+        return { type: 'option', index: number - 1 };
+      }
+
+      if (number === options.length + 1) return { type: 'back' };
+      if (number === options.length + 2) return { type: 'menu' };
+    }
+
+    return { type: 'invalid' };
+  }
+
   // Topes de WhatsApp para listas interactivas.
   // ⚠️ Pasarse de CUALQUIERA de estos hace que Meta rechace el mensaje entero
   // y el cliente NO RECIBE NADA. No es que se vea feo: no llega, y el bot
@@ -516,10 +563,16 @@ class MessageHandler {
         // "elegí al barbero 1". Creía haber cancelado sin cancelar nada.
         this.appointmentState[to].lastActivity = Date.now();
 
-        await whatsappService.sendMessage(
-          to,
-          '⚠️ Esa opción es de un menú anterior.\n\nSigue donde ibas escribiendo tu respuesta, o escribe *menu* para empezar de nuevo.'
-        );
+        if (this.isFlowOption(option)) {
+          // Respuesta real de una pantalla del flujo (lista o botón).
+          await this.handleAppointmentFlow(to, option);
+        } else {
+          // Un id del menú principal ('1','2','3'): viene del historial.
+          await whatsappService.sendMessage(
+            to,
+            '⚠️ Esa opción es de un menú anterior.\n\nSigue donde ibas escribiendo tu respuesta, o escribe *menu* para empezar de nuevo.'
+          );
+        }
 
       } else if (this.cancelState[to]) {
         this.cancelState[to].lastActivity = Date.now();
@@ -744,33 +797,20 @@ Si necesitas cancelar tu turno:
       }
 
       case 'barber': {
-        const cleanInput = message.trim();
+        const choice = this.resolveChoice(message, this.barberOptions(), 'barbero');
 
-        const navHandled = await this.handleNavigationNumber(to, cleanInput, this.barbers.length);
-        if (navHandled) return;
-
-        if (!/^\d+$/.test(cleanInput)) {
-          if (this.incrementError(to)) {
-            await whatsappService.sendMessage(
-              to,
-              "❌ Parece que hay un error.\nEscribe *menu* para empezar de nuevo."
-            );
-            return;
-          }
-
-          await whatsappService.sendMessage(
-            to,
-            `❌ Respuesta inválida. Escribe solo el número del barbero.\nEjemplo: 1${this.buildNavigationFooter(this.barbers.length)}`
-          );
+        if (choice.type === 'back') {
+          await this.handleBack(to);
           return;
         }
 
-        const selectedBarberIndex = parseInt(cleanInput, 10) - 1;
+        if (choice.type === 'menu') {
+          this.clearAllStates(to);
+          await this.sendMainMenu(to);
+          return;
+        }
 
-        if (
-          selectedBarberIndex < 0 ||
-          selectedBarberIndex >= this.barbers.length
-        ) {
+        if (choice.type !== 'option') {
           if (this.incrementError(to)) {
             await whatsappService.sendMessage(
               to,
@@ -779,15 +819,17 @@ Si necesitas cancelar tu turno:
             return;
           }
 
-          await whatsappService.sendMessage(
+          // Se reenvía la lista con el aviso adentro, en vez de mandar dos
+          // mensajes: el botón de la lista anterior ya quedó arriba en el chat.
+          await this.sendBarberOptions(
             to,
-            `❌ Opción inválida. Escribe solo el número de un barbero de la lista.${this.buildNavigationFooter(this.barbers.length)}`
+            '❌ No entendí esa opción.\n\n✂️ Elige tu barbero'
           );
           return;
         }
 
         this.resetError(to);
-        state.barber = this.barbers[selectedBarberIndex];
+        state.barber = this.barbers[choice.index];
         state.step = 'date';
 
         await this.sendDateOptions(to, state);
@@ -1139,16 +1181,39 @@ Si necesitas cancelar tu turno:
     return dates;
   }
 
-  async sendBarberOptions(to) {
-    let message = "✂️ Elige tu barbero:\n\n";
+  // Las opciones en el mismo orden en que se muestran, para que el número
+  // escrito y la fila tocada apunten siempre a lo mismo.
+  barberOptions() {
+    return this.barbers.map(barber => ({
+      value: barber.toLowerCase(),
+      label: barber,
+    }));
+  }
 
-    this.barbers.forEach((barber, index) => {
-      message += `${index + 1}️⃣ ${barber}\n`;
+  async sendBarberOptions(to, customBody) {
+    const total = this.barbers.length;
+
+    await this.sendOptionList(to, {
+      body: customBody || '✂️ Elige tu barbero',
+      buttonText: 'Elegir barbero',
+      sections: [
+        {
+          title: 'BARBEROS',
+          rows: this.barberOptions().map((option, index) => ({
+            id: `barbero_${option.value}`,
+            title: `${index + 1}. ${option.label}`,
+          })),
+        },
+        {
+          title: 'MÁS OPCIONES',
+          rows: [
+            { id: 'nav_volver', title: `${total + 1}. ⬅️ Volver` },
+            { id: 'nav_menu', title: `${total + 2}. 🏠 Menú principal`, optional: true },
+          ],
+        },
+      ],
+      footer: 'También puedes escribir el número',
     });
-
-    message += this.buildNavigationFooter(this.barbers.length);
-
-    await whatsappService.sendMessage(to, message);
   }
 
   async sendDateOptions(to, state) {
