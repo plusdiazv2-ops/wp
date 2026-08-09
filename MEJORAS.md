@@ -1,28 +1,108 @@
-# Backlog — Chatbot Exclusive Barber
+# Plan de trabajo — Chatbot Exclusive Barber
 
 Revisión de `messageHandler.js` + `googleSheetsService.js` (agosto 2026).
 Verificado línea por línea contra el código el **9 de agosto de 2026**, y ampliado
 con `webhookController.js` y `whatsappService.js`.
 
-Ordenado por **prioridad de trabajo acordada**, no por dificultad.
-Las secciones (🔴 🟠 🕓 🟡) clasifican por **naturaleza del riesgo**; el "Orden sugerido"
-del final es el **plan de trabajo**. No son lo mismo y no tienen que coincidir.
+---
 
-### ⚠️ Cómo leer este documento
+## 🎯 El rumbo
 
-Cada punto lleva una marca. **La diferencia importa:**
+**Meta:** que el chatbot se vea profesional y sorprenda al cliente. Hoy funciona,
+pero se ve simple: listas de texto con números.
 
-- ✅ **Observado** — ya pasó de verdad en producción.
-- 🔮 **Predicción** — está en el código y es real como código, pero **nunca se ha visto
-  ocurrir**. En 4 meses de producción no hay un solo caso registrado.
+Decisiones ya tomadas (9 de agosto de 2026, con el dueño):
 
-Casi todo este backlog es 🔮. Eso no lo hace falso, pero sí significa que el orden de
-trabajo es una apuesta sobre lo que *podría* pasar, no una respuesta a lo que pasó.
-El único ✅ de la lista es el punto 1.
+| Tema | Decisión | Por qué |
+|---|---|---|
+| **Dónde agenda el cliente** | **WhatsApp, siempre** | La ventaja es que no instala nada. Una web para el cliente sería un retroceso |
+| **Dónde consulta el barbero** | **WhatsApp** | Ya funciona bien y les gusta así |
+| **Dónde se gestionan horarios** | **Web**, más adelante | Editar un horario semanal por chat es tortura |
+| **Dónde vive esa web** | **Dentro de la misma app de Railway** | El bot ya es un servidor Express. Costo adicional: **$0** |
+| **App móvil** | **Descartada** | Es la opción *más cara*: $25 Google Play, $99/año Apple, y aun así necesitas el servidor |
+| **Base de datos** | **Google Sheets por ahora** | El volumen no justifica migrar. Cuando duela: Neon o Supabase gratis, **no** el Postgres de Railway (consume del crédito de $5) |
+
+⚠️ **Railway borra los archivos que la app escriba, en cada despliegue.** Todo dato que
+cambie tiene que ir a Sheets o a una base de datos. Guardar configuración en un archivo
+JSON **no funciona**.
 
 ---
 
-## 🎯 Los tres primeros — en este orden
+## 🗺️ Plan por fases
+
+El orden de trabajo. Los números remiten al detalle de más abajo.
+
+### Fase 1 — Preparar el terreno
+*Hay que hacerlo antes de tocar los menús.*
+
+- **Punto 2** — el botón viejo en agendamiento
+  → Hoy la rama de mensajes interactivos es el camino secundario del bot. **Con menús
+  de lista pasa a ser el camino principal**, así que ese bug dejaría de ser molesto
+  y pasaría a ser grave. Se arregla *antes*, no después.
+- **Punto 11** — responder algo a las notas de voz
+  → Barato, independiente de todo, y es justo lo que significa "profesional".
+
+### Fase 2 — El rediseño del chat ⭐
+*Lo que de verdad se busca.*
+
+1. **Diseñar el flujo pantalla por pantalla** y que el dueño lo apruebe **antes** de
+   programar. No se reescribe `messageHandler.js` a ciegas.
+2. **Menús de lista tocables** — `sendListMessage()` **ya está escrita** en
+   `whatsappService.js` y nunca se ha usado. Es el salto visual más grande disponible.
+3. **Imágenes de los barberos** — `sendMediaMessage()` también está escrita y sin usar.
+   Pendiente de que el dueño consiga las fotos.
+4. **Punto 3** — el bug de "volver" en el paso del nombre. Cae dentro de este trabajo,
+   porque `handleBack()` se reescribe de todos modos.
+
+**Advertencia:** esto cambia la forma de navegar. Hoy el cliente *escribe* un número;
+con listas *toca* una opción. Toda la convención N+1/N+2, los contadores de error y la
+navegación global se rehacen. Es el archivo más delicado del proyecto.
+
+**Por verificar antes de diseñar:** el tope de filas por lista en la documentación de
+Meta (creo que 10). Bolon tiene 14 turnos, así que probablemente haya que partir en
+*Mañana / Tarde* — lo cual se ve mejor, no peor.
+
+### Fase 3 — Horarios gestionables
+- **Punto 1** — sacar los horarios del código a una **pestaña de Google Sheets**.
+  Así Bolon los edita desde el celular sin que nadie toque código. Costo: $0.
+- **Punto 10** — el domingo de Bolon. Cae solo al hacer el punto 1.
+- **Punto 13** — tests de las funciones de horarios. Este es el momento natural.
+
+### Fase 4 — Estabilidad
+*Antes de montarle el panel web encima.*
+- **Punto 4** — que `getSheetData()` no invente disponibilidad al fallar, y cachear.
+- **Punto 12** — validar la firma del webhook.
+
+### Fase 5 — Panel web de administración
+- **Punto 8** — contraseñas y `SPREADSHEET_ID` fuera del código (ahí sí hace falta
+  login de verdad).
+- Panel dentro de la misma app de Railway. Admins: el desarrollador y Bolon (dueño).
+
+### Sin fase — cuando haya rato
+Puntos **5**, **6**, **9**, los riesgos latentes y la limpieza.
+
+---
+
+### ⚠️ Cómo leer el detalle
+
+Cada punto lleva una marca. **La diferencia importa:**
+
+- ✅ **Hecho verificado** — es una situación real de hoy, no una suposición.
+- 🔮 **Predicción** — está en el código y es real como código, pero **nunca se ha visto
+  ocurrir**. En 4 meses de producción no hay un solo caso registrado.
+
+Los ✅ son los puntos **1, 7 y 8**. De esos, el único que ha causado un incidente de
+verdad es el **1**. Todo lo demás es lectura de código: cierto como código, pero una
+apuesta sobre lo que *podría* pasar.
+
+---
+
+## 📌 Detalle de cada punto
+
+Las secciones de aquí en adelante clasifican por **naturaleza del riesgo**
+(🔴 🟠 🕓 🟡), no por orden de trabajo. Para el orden, mira las fases de arriba.
+
+### Base del rediseño
 
 ### 1. ✅ Horarios duplicados en dos funciones → `config/barbers.js`
 **El único punto de este documento que ya ocurrió en la vida real.**
@@ -351,36 +431,37 @@ Inconsistencias menores:
 
 ---
 
-## Orden sugerido
+## Advertencias sobre el orden de las fases
 
-Los tres primeros están fijados por decisión del dueño. Del 4 en adelante es propuesta.
+**Las fases no están ordenadas por riesgo, sino por el rumbo del producto.** Si el
+criterio fuera puro riesgo, el punto 4 (vender el mismo turno dos veces) iría de
+primero, antes que el rediseño. Se decidió priorizar lo que el cliente ve. Queda dicho
+para que la decisión sea consciente y no un descuido.
 
-1. **Punto 1** — `config/barbers.js`, unificar horarios *(único ✅ del documento)*
-   - Aprovechar y meter aquí el **punto 13** (tests de horarios) y el **punto 10**
-     (domingo de Bolon), que se vuelven triviales una vez unificado.
-2. **Punto 2** — botón viejo en agendamiento *(el caso del botón "Cancelar")*
-3. **Punto 3** — "volver" en el paso del nombre *(barato y visible)*
-4. **Punto 11** — responder algo a las notas de voz *(probablemente lo más frecuente
-   de todo el documento, y son ~5 líneas)*
-5. **Punto 4** — que `getSheetData()` no devuelva `[]` al fallar, y cachear auth +
-   lectura *(evita vender el mismo turno dos veces)*
-6. **Punto 8** — contraseñas y `SPREADSHEET_ID` a variables de entorno
-7. **Punto 12** — validar la firma del webhook
-8. **Punto 6** — verificación antes de cancelar
-9. **Punto 7** — bloquear horarios desde el panel del barbero *(feature nueva)*
-10. **Punto 5** — mensaje claro cuando se pierde la sesión por reinicio
-11. Decidir qué hacer con la IA *(ver Limpieza)*
-12. Limpieza de código muerto
+**Los riesgos latentes quedan fuera de las fases a propósito.** Retomarlos cuando suba
+el volumen, o al primer caso real de turno duplicado. Ojo: si aparece un turno
+duplicado, revisar **primero** el punto 4 (cuota), que produce el mismo síntoma y es
+más probable que el webhook.
 
-### Dos advertencias sobre este orden
+**Cuidado con arreglar lo que se va a reemplazar.** El rediseño de la Fase 2 reescribe
+la navegación completa. Cualquier arreglo sobre las listas numeradas actuales tiene
+fecha de vencimiento — por ejemplo, el arreglo de los emojis de dos dígitos
+(commit `8f32d19`) deja de tener sentido el día que las listas se vuelvan tocables.
+Antes de arreglar algo de navegación, preguntarse si la Fase 2 se lo va a llevar.
 
-**No está ordenado por riesgo.** Está ordenado por "barato y visible primero". Si el
-criterio fuera puro riesgo, el punto 4 (vender el turno dos veces) iría antes que el 3
-y probablemente antes que el 2. Queda dicho para que la decisión sea consciente.
+---
 
-**Los riesgos latentes (webhook y deduplicación) quedan fuera a propósito.** Retomarlos
-cuando suba el volumen, o al primer caso real de turno duplicado. Ojo: si aparece un
-turno duplicado, revisar **primero** el punto 4 (cuota), que produce el mismo síntoma
-y es más probable.
+## Bitácora de decisiones
+
+| Fecha | Decisión |
+|---|---|
+| 9 ago 2026 | Bolon **no** trabaja domingos. Confirmado con el dueño |
+| 9 ago 2026 | Turnos de Bolon extendidos: `5:00pm` y `5:30pm` (commits `ac21f54`, `9730603`) |
+| 9 ago 2026 | Julian tiene un salto de 50 min entre 2:30pm y 3:20pm — **es a propósito**, no tocar |
+| 9 ago 2026 | Formato de hora con minutos (`5:00pm`, no `5pm`), igual que Julian y Ladino |
+| 9 ago 2026 | Números de lista con emoji doble para dos cifras (`1️⃣2️⃣`) |
+| 9 ago 2026 | Rumbo definido: chat profesional en WhatsApp, gestión en web dentro de Railway |
+
+---
 
 Uno a la vez, cada uno en su rama, probado en WhatsApp antes de pasar al siguiente.
