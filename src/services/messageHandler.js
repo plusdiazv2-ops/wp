@@ -162,10 +162,33 @@ class MessageHandler {
         return true;
       }
 
-      if (state.step === 'time') {
+      if (state.step === 'jornada') {
         state.step = 'date';
         delete state.date;
         delete state.displayDate;
+        delete state.allSlots;
+        delete state.availableSlots;
+        delete state.periodSlots;
+        this.resetError(to);
+        await this.sendDateOptions(to, state);
+        return true;
+      }
+
+      if (state.step === 'time') {
+        // Si se pasó por la pantalla de jornada, volver lleva ahí, no hasta
+        // las fechas. Si se la saltó (cabían todos los turnos), no existe.
+        if (state.periodSlots) {
+          state.step = 'jornada';
+          state.availableSlots = state.allSlots;
+          this.resetError(to);
+          await this.sendPeriodOptions(to, state);
+          return true;
+        }
+
+        state.step = 'date';
+        delete state.date;
+        delete state.displayDate;
+        delete state.allSlots;
         delete state.availableSlots;
         this.resetError(to);
         await this.sendDateOptions(to, state);
@@ -915,7 +938,55 @@ Si necesitas cancelar tu turno:
           return;
         }
 
-        state.availableSlots = availableSlots;
+        state.allSlots = availableSlots;
+
+        // La pantalla de jornada existe solo porque los turnos no caben en una
+        // lista (tope 10 filas, menos 2 de navegación). Si caben todos, se
+        // salta: el cliente ve todo de una y se ahorra un toque.
+        if (availableSlots.length <= this.listLimits.rows - 2) {
+          delete state.periodSlots;
+          state.availableSlots = availableSlots;
+          state.step = 'time';
+
+          await this.sendTimeOptions(to, state);
+          return;
+        }
+
+        state.step = 'jornada';
+        await this.sendPeriodOptions(to, state);
+        return;
+      }
+
+      case 'jornada': {
+        const periods = this.periodOptions(state);
+        const choice = this.resolveChoice(message, periods, 'jornada');
+
+        if (choice.type === 'back') {
+          await this.handleBack(to);
+          return;
+        }
+
+        if (choice.type === 'menu') {
+          this.clearAllStates(to);
+          await this.sendMainMenu(to);
+          return;
+        }
+
+        if (choice.type !== 'option') {
+          if (this.incrementError(to)) {
+            await whatsappService.sendMessage(
+              to,
+              "❌ Parece que hay un error.\nEscribe *menu* para empezar de nuevo."
+            );
+            return;
+          }
+
+          await this.sendPeriodOptions(to, state);
+          return;
+        }
+
+        this.resetError(to);
+        state.availableSlots = periods[choice.index].slots;
         state.step = 'time';
 
         await this.sendTimeOptions(to, state);
@@ -923,13 +994,25 @@ Si necesitas cancelar tu turno:
       }
 
       case 'time': {
-        const cleanInput = message.trim();
-        const optionsCount = state.availableSlots?.length || 0;
+        const slots = state.availableSlots || [];
+        const choice = this.resolveChoice(
+          message,
+          slots.map(slot => ({ value: slot })),
+          'hora'
+        );
 
-        const navHandled = await this.handleNavigationNumber(to, cleanInput, optionsCount);
-        if (navHandled) return;
+        if (choice.type === 'back') {
+          await this.handleBack(to);
+          return;
+        }
 
-        if (!/^\d+$/.test(cleanInput)) {
+        if (choice.type === 'menu') {
+          this.clearAllStates(to);
+          await this.sendMainMenu(to);
+          return;
+        }
+
+        if (choice.type !== 'option') {
           if (this.incrementError(to)) {
             await whatsappService.sendMessage(
               to,
@@ -938,36 +1021,16 @@ Si necesitas cancelar tu turno:
             return;
           }
 
-          await whatsappService.sendMessage(
+          await this.sendTimeOptions(
             to,
-            `❌ Respuesta inválida. Escribe solo el número de la hora que deseas.\nEjemplo: 2${this.buildNavigationFooter(optionsCount)}`
+            state,
+            '❌ No entendí esa opción.\n\n⏰ Elige una hora de la lista:'
           );
           return;
         }
 
-        const selectedTimeIndex = parseInt(cleanInput, 10) - 1;
-
-        if (
-          !state.availableSlots ||
-          selectedTimeIndex < 0 ||
-          selectedTimeIndex >= state.availableSlots.length
-        ) {
-          if (this.incrementError(to)) {
-            await whatsappService.sendMessage(
-              to,
-              "❌ Parece que hay un error.\nEscribe *menu* para empezar de nuevo."
-            );
-            return;
-          }
-
-          await whatsappService.sendMessage(
-            to,
-            `❌ Opción inválida. Escribe solo el número de una hora de la lista.${this.buildNavigationFooter(optionsCount)}`
-          );
-          return;
-        }
-
-        const finalTime = state.availableSlots[selectedTimeIndex];
+        const finalTime = slots[choice.index];
+        const optionsCount = slots.length;
 
         // 🔒 VALIDACIÓN: máximo 2 turnos por día
         const appointmentsCount = await countUserAppointmentsSameDay(to, state.date);
@@ -1267,16 +1330,111 @@ Si necesitas cancelar tu turno:
     });
   }
 
-  async sendTimeOptions(to, state) {
-    let text = `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:\n\n`;
+  /**
+   * Parte los turnos en mañana y tarde, cortando a las 12:00.
+   *
+   * El diseño original decía cortar en el almuerzo de cada barbero, pero eso
+   * se rompe: el miércoles Julian hace jornada corta seguida, sin almuerzo,
+   * y ahí no hay dónde cortar. Las 12:00 además es como lo piensa el cliente.
+   */
+  splitSlotsByPeriod(slots) {
+    const manana = [];
+    const tarde = [];
 
-    state.availableSlots.forEach((slot, index) => {
-      text += `${this.numberToEmoji(index + 1)} ${slot}\n`;
+    (slots || []).forEach(slot => {
+      const parsed = this.parseTime(slot);
+      const minutes = parsed ? parsed.hour * 60 + parsed.minutes : 0;
+
+      if (minutes < 12 * 60) {
+        manana.push(slot);
+      } else {
+        tarde.push(slot);
+      }
     });
 
-    text += this.buildNavigationFooter(state.availableSlots.length);
+    return { manana, tarde };
+  }
 
-    await whatsappService.sendMessage(to, text);
+  // Solo las jornadas que tienen turnos, en orden. El número escrito y el
+  // botón tocado tienen que apuntar siempre a lo mismo.
+  periodOptions(state) {
+    return [
+      { value: 'manana', label: '☀️ Mañana', slots: state.periodSlots?.manana || [] },
+      { value: 'tarde', label: '🌤️ Tarde', slots: state.periodSlots?.tarde || [] },
+    ].filter(period => period.slots.length > 0);
+  }
+
+  async sendPeriodOptions(to, state, customBody = null) {
+    state.periodSlots = this.splitSlotsByPeriod(state.allSlots);
+
+    const disponibles = this.periodOptions(state);
+
+    // Se informa de las dos jornadas, pero solo se muestra botón de las que
+    // tienen cupos: WhatsApp no tiene botones deshabilitados, así que un
+    // botón de "Tarde (sin cupos)" sería un callejón sin salida.
+    const linea = (label, slots) => {
+      if (slots.length === 0) return `${label} — ❌ sin turnos`;
+
+      const numero = disponibles.findIndex(p => p.label === label) + 1;
+      const turnos = slots.length === 1 ? '1 turno disponible' : `${slots.length} turnos disponibles`;
+
+      return `${numero}. ${label} — ${turnos}`;
+    };
+
+    const body = customBody || `🕐 ¿A qué hora prefieres?
+
+Para *${state.displayDate}* con *${state.barber}*:
+
+${linea('☀️ Mañana', state.periodSlots.manana)}
+${linea('🌤️ Tarde', state.periodSlots.tarde)}
+
+${disponibles.length + 1}. ⬅️ Volver`;
+
+    const buttons = disponibles.map(period => ({
+      type: 'reply',
+      reply: { id: `jornada_${period.value}`, title: period.label },
+    }));
+
+    buttons.push({ type: 'reply', reply: { id: 'nav_volver', title: '⬅️ Volver' } });
+
+    await whatsappService.sendInteractiveButtons(to, body, buttons);
+  }
+
+  async sendTimeOptions(to, state, customBody = null) {
+    const slots = state.availableSlots || [];
+    const { manana, tarde } = this.splitSlotsByPeriod(slots);
+
+    // La numeración corre seguida entre secciones, para que el número escrito
+    // coincida con lo que se ve.
+    let contador = 0;
+    const armarFilas = (lista) => lista.map(slot => {
+      contador++;
+      return { id: `hora_${slot}`, title: `${contador}. ${slot}` };
+    });
+
+    const sections = [];
+
+    const filasManana = armarFilas(manana);
+    if (filasManana.length) sections.push({ title: '☀️ MAÑANA', rows: filasManana });
+
+    const filasTarde = armarFilas(tarde);
+    if (filasTarde.length) sections.push({ title: '🌤️ TARDE', rows: filasTarde });
+
+    sections.push({
+      title: 'MÁS OPCIONES',
+      rows: [
+        { id: 'nav_volver', title: `${slots.length + 1}. ⬅️ Volver` },
+        { id: 'nav_menu', title: `${slots.length + 2}. 🏠 Menú principal`, optional: true },
+      ],
+    });
+
+    await this.sendOptionList(to, {
+      body: customBody
+        || `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:`,
+      buttonText: 'Elegir hora',
+      sections,
+      footer: 'También puedes escribir el número',
+    });
   }
 
   async sendCancelAppointmentList(to, appointments) {
