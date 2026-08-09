@@ -1,7 +1,6 @@
 # Diseño del flujo — Fase 2 del plan
 
-> **Estado: propuesta, pendiente de aprobación.**
-> Mientras diga esto, **no se toca `messageHandler.js`.**
+> **Estado: APROBADO el 9 de agosto de 2026.** Se puede programar.
 
 Este documento es el contrato: se aprueba primero, se programa después.
 El objetivo de la Fase 2 (ver `MEJORAS.md`) es que el chat se vea profesional.
@@ -152,10 +151,46 @@ tope son 10 filas.
 ```
 🕐 ¿A qué hora prefieres?
 
+Para el *Lunes 10* con *Bolon*:
+
+☀️ *Mañana* — 6 turnos disponibles
+🌤️ *Tarde* — 8 turnos disponibles
+
    [ ☀️ Mañana ]
    [ 🌤️ Tarde  ]
    [ ⬅️ Volver ]
 ```
+
+### Cuando una jornada está llena
+
+```
+🕐 ¿A qué hora prefieres?
+
+Para el *Lunes 10* con *Bolon*:
+
+☀️ *Mañana* — 6 turnos disponibles
+🌤️ *Tarde* — ❌ sin turnos
+
+   [ ☀️ Mañana ]
+   [ ⬅️ Volver ]
+```
+
+**Regla: se informa de las dos jornadas, pero solo se muestra botón de la que tiene
+cupos.** La razón es técnica: **WhatsApp no tiene botones deshabilitados.** Todo lo que
+se muestra se puede tocar, así que un botón de "Tarde (sin cupos)" sería un callejón
+sin salida.
+
+El texto del cuerpo no tiene el límite de 20 caracteres del botón, así que ahí sí cabe
+decir **cuántos** turnos quedan, que es más útil que solo "hay" o "no hay".
+
+Es coherente con lo que el bot ya hace hoy: en la lista de fechas, los días llenos
+salen marcados con `❌`. Mismo lenguaje visual.
+
+**Si las dos jornadas están llenas** no se muestra esta pantalla: se le dice al cliente
+que ese día se llenó y se le devuelve la lista de fechas. En teoría no debería pasar,
+porque la lista de fechas ya marca los días sin cupos — pero el código no puede
+asumirlo, porque entre que se pinta la lista y el cliente escoge pueden pasar minutos
+y alguien más puede haber tomado el último turno.
 
 **El corte no es a las 12:00**, es en el almuerzo de cada barbero:
 
