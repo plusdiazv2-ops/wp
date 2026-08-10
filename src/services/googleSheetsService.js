@@ -1,5 +1,11 @@
 import { google } from 'googleapis';
 import path from 'path';
+import {
+  NOMBRES_DIAS,
+  esTurnoValido,
+  turnoAMinutos,
+  turnosPorDefecto,
+} from '../config/barbers.js';
 
 const sheets = google.sheets('v4');
 
@@ -29,6 +35,114 @@ const getAuthClient = async () => {
 };
 
 const SPREADSHEET_ID = '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ';
+
+// ============================================================
+// HORARIOS — pestaña `horarios`, con los del código como respaldo
+// ============================================================
+// Estructura esperada, una fila por barbero y día:
+//
+//   A: Barbero   B: Día        C: Turnos separados por coma
+//   Bolon        Lunes         9am, 9:35am, 10:10am, 1:30pm, ...
+//
+// Reglas:
+// - Pestaña ausente o ilegible → se usan los horarios de config/barbers.js.
+//   Esto es a propósito: si esto dependiera solo de la hoja, un error de
+//   Sheets dejaría al bot sin horarios para NADIE.
+// - Falta la fila de un día → ese día usa el horario del código.
+// - Fila presente con la celda vacía → ese día NO trabaja.
+//
+// Se cachea porque generateNextAvailableDates() llama a getAvailableSlots()
+// 7 veces seguidas: sin caché serían 7 lecturas más por cada cliente.
+const PESTANA_HORARIOS = 'horarios';
+const CACHE_HORARIOS_MS = 5 * 60 * 1000;
+
+let cacheHorarios = { datos: null, momento: 0 };
+
+export const limpiarCacheHorarios = () => {
+  cacheHorarios = { datos: null, momento: 0 };
+};
+
+const sinTildes = (texto) =>
+  String(texto || '').toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+export function interpretarFilasDeHorario(filas) {
+  const resultado = {};
+
+  (filas || []).slice(1).forEach((fila, indice) => {
+    const barbero = (fila[0] || '').toLowerCase().trim();
+    const dia = NOMBRES_DIAS.findIndex(d => sinTildes(d) === sinTildes(fila[1]));
+
+    if (!barbero) return;
+
+    if (dia === -1) {
+      console.log(`Fila ${indice + 2} de "${PESTANA_HORARIOS}": día no reconocido → ${fila[1]}`);
+      return;
+    }
+
+    const turnos = (fila[2] || '')
+      .split(',')
+      .map(turno => turno.trim().toLowerCase())
+      .filter(Boolean);
+
+    const validos = turnos.filter(esTurnoValido);
+    const invalidos = turnos.filter(turno => !esTurnoValido(turno));
+
+    if (invalidos.length) {
+      console.log(
+        `Fila ${indice + 2} de "${PESTANA_HORARIOS}": turnos con formato inválido, se ignoran → ${invalidos.join(', ')}`
+      );
+    }
+
+    if (!resultado[barbero]) resultado[barbero] = {};
+    resultado[barbero][dia] = validos;
+  });
+
+  return resultado;
+}
+
+async function leerHorariosDeLaHoja() {
+  const vigente = cacheHorarios.datos
+    && (Date.now() - cacheHorarios.momento) < CACHE_HORARIOS_MS;
+
+  if (vigente) return cacheHorarios.datos;
+
+  let datos = {};
+
+  try {
+    const authClient = await getAuthClient();
+
+    const respuesta = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${PESTANA_HORARIOS}'!A:C`,
+      auth: authClient,
+    });
+
+    datos = interpretarFilasDeHorario(respuesta.data.values || []);
+  } catch (error) {
+    // Que la pestaña no exista NO es un error: es el estado normal hasta que
+    // alguien la cree. Se cachea igual el resultado vacío, para no reintentar
+    // la lectura en cada llamada.
+    console.log(
+      `Pestaña "${PESTANA_HORARIOS}" no disponible, se usan los horarios del código:`,
+      error?.message || error
+    );
+  }
+
+  cacheHorarios = { datos, momento: Date.now() };
+  return datos;
+}
+
+/** Turnos de un barbero en un día: los de la hoja si están, si no los del código. */
+export const obtenerTurnos = async (barbero, dia) => {
+  const deLaHoja = await leerHorariosDeLaHoja();
+  const clave = String(barbero || '').toLowerCase().trim();
+  const delDia = deLaHoja[clave]?.[dia];
+
+  if (Array.isArray(delDia)) return delDia;
+
+  return turnosPorDefecto(clave, dia);
+};
 
 // GUARDAR FILA
 async function addRowSheet(auth, values) {
@@ -119,157 +233,11 @@ export const getAvailableSlots = async (barber, date) => {
     const authClient = await getAuthClient();
     const rows = await getSheetData(authClient);
 
-    let allSlots = [];
-
     const currentDate = new Date(`${date}T00:00:00`);
     const day = currentDate.getDay();
 
-    // =========================
-    // 💈 BOLON
-    // =========================
-    if (barber.toLowerCase().trim() === 'bolon') {
-      if (day === 3) {
-        allSlots = [
-          "1:30pm",
-          "2:05pm",
-          "2:40pm",
-          "3:15pm",
-          "3:50pm",
-          "4:25pm",
-          "5:00pm",
-          "5:30pm"
-        ];
-      } else {
-        allSlots = [
-          "9am",
-          "9:35am",
-          "10:10am",
-          "10:45am",
-          "11:20am",
-          "11:55am",
-          "1:30pm",
-          "2:05pm",
-          "2:40pm",
-          "3:15pm",
-          "3:50pm",
-          "4:25pm",
-          "5:00pm",
-          "5:30pm"
-        ];
-      }
-    }
-
-    // =========================
-    // 💈 JULIAN
-    // =========================
-    else if (barber.toLowerCase().trim() === 'julian') {
-      // Domingo no trabaja
-      if (day === 0) {
-        return [];
-      }
-
-      // Miércoles solo trabaja en la mañana
-      if (day === 3) {
-        allSlots = [
-          "9:40am",
-          "10:20am",
-          "11:00am",
-          "11:40am",
-          "12:20pm",
-          "1:00pm"
-        ];
-      }
-
-      // Martes trabaja hasta las 4:40pm
-      else if (day === 2) {
-        allSlots = [
-          "9:40am",
-          "10:20am",
-          "11:00am",
-          "11:40am",
-          "12:20pm",
-          "1:00pm",
-          "2:30pm",
-          "3:20pm",
-          "4:00pm",
-          "4:40pm"
-        ];
-      }
-
-      // Lunes, jueves, viernes y sábado hasta las 5:20pm
-      else {
-        allSlots = [
-          "9:40am",
-          "10:20am",
-          "11:00am",
-          "11:40am",
-          "12:20pm",
-          "1:00pm",
-          "2:30pm",
-          "3:20pm",
-          "4:00pm",
-          "4:40pm",
-          "5:20pm"
-        ];
-      }
-    }
-
-    // =========================
-    // 💈 LADINO
-    // =========================
-    else if (barber.toLowerCase().trim() === 'ladino') {
-      // Domingo no trabaja
-      if (day === 0) {
-        return [];
-      }
-
-      allSlots = [
-        "10:30am",
-        "11:10am",
-        "11:50am",
-        "12:30pm",
-        "1:10pm",
-        "3:00pm",
-        "3:40pm",
-        "4:20pm",
-        "5:00pm",
-        "5:40pm",
-        "6:20pm"
-      ];
-    }
-
-    // =========================
-    // 🧪 PRUEBA — barbero temporal del desarrollador
-    // =========================
-    // Mismo horario de Bolon, que es el caso mas exigente: 14 turnos,
-    // los que obligan a la pantalla de jornada y llenan el tope de 10
-    // filas de WhatsApp. Sirve para probar los casos limite.
-    //
-    // Se apaga desde messageHandler.js (testBarberEnabled). Este horario
-    // puede quedarse aqui sin estorbar: si el barbero no esta en la lista,
-    // nadie llega hasta aca.
-    if (barber.toLowerCase().trim() === 'prueba') {
-      if (day === 0) {
-        return [];
-      }
-
-      allSlots = [
-        "9am",
-        "9:35am",
-        "10:10am",
-        "10:45am",
-        "11:20am",
-        "11:55am",
-        "1:30pm",
-        "2:05pm",
-        "2:40pm",
-        "3:15pm",
-        "3:50pm",
-        "4:25pm",
-        "5:00pm",
-        "5:30pm"
-      ];
-    }
+    // Fuente unica: config/barbers.js, o la pestana `horarios` si existe.
+    const allSlots = await obtenerTurnos(barber, day);
 
     const occupied = rows
       .slice(1)
@@ -381,19 +349,10 @@ export const getBookedSlots = async (barber, date) => {
   }
 };
 
-const slotToMinutes = (slot) => {
-  const match = (slot || '').toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
-  if (!match) return -1;
-
-  let hour = parseInt(match[1], 10);
-  const minutes = match[2] ? parseInt(match[2], 10) : 0;
-  const period = match[3];
-
-  if (period === 'pm' && hour !== 12) hour += 12;
-  if (period === 'am' && hour === 12) hour = 0;
-
-  return hour * 60 + minutes;
-};
+// Se conserva el nombre porque lo usan varias funciones de este archivo,
+// pero el cálculo vive en config/barbers.js para no volver a tenerlo
+// duplicado en dos sitios.
+const slotToMinutes = (slot) => turnoAMinutos(slot);
 
 export const getDailyScheduleByBarber = async (barber, date) => {
   try {
@@ -403,146 +362,8 @@ export const getDailyScheduleByBarber = async (barber, date) => {
     const currentDate = new Date(`${date}T00:00:00`);
     const day = currentDate.getDay();
 
-    let allSlots = [];
-
-    if (barber.toLowerCase().trim() === 'bolon') {
-      if (day === 3) {
-        allSlots = [
-          "1:30pm",
-          "2:05pm",
-          "2:40pm",
-          "3:15pm",
-          "3:50pm",
-          "4:25pm",
-          "5:00pm",
-          "5:30pm"
-        ];
-      } else {
-        allSlots = [
-          "9am",
-          "9:35am",
-          "10:10am",
-          "10:45am",
-          "11:20am",
-          "11:55am",
-          "1:30pm",
-          "2:05pm",
-          "2:40pm",
-          "3:15pm",
-          "3:50pm",
-          "4:25pm",
-          "5:00pm",
-          "5:30pm"
-        ];
-      }
-    }
-
-    if (barber.toLowerCase().trim() === 'julian') {
-      // Domingo no trabaja
-      if (day === 0) {
-        return [];
-      }
-
-      // Miércoles solo trabaja en la mañana
-      if (day === 3) {
-        allSlots = [
-          "9:40am",
-          "10:20am",
-          "11:00am",
-          "11:40am",
-          "12:20pm",
-          "1:00pm"
-        ];
-      }
-
-      // Martes trabaja hasta las 4:40pm
-      else if (day === 2) {
-        allSlots = [
-          "9:40am",
-          "10:20am",
-          "11:00am",
-          "11:40am",
-          "12:20pm",
-          "1:00pm",
-          "2:30pm",
-          "3:20pm",
-          "4:00pm",
-          "4:40pm"
-        ];
-      }
-
-      // Lunes, jueves, viernes y sábado hasta las 5:20pm
-      else {
-        allSlots = [
-          "9:40am",
-          "10:20am",
-          "11:00am",
-          "11:40am",
-          "12:20pm",
-          "1:00pm",
-          "2:30pm",
-          "3:20pm",
-          "4:00pm",
-          "4:40pm",
-          "5:20pm"
-        ];
-      }
-    }
-
-    if (barber.toLowerCase().trim() === 'ladino') {
-      // Domingo no trabaja
-      if (day === 0) {
-        return [];
-      }
-
-      // Lunes a sábado
-      allSlots = [
-        "10:30am",
-        "11:10am",
-        "11:50am",
-        "12:30pm",
-        "1:10pm",
-        "3:00pm",
-        "3:40pm",
-        "4:20pm",
-        "5:00pm",
-        "5:40pm",
-        "6:20pm"
-      ];
-    }
-
-    // =========================
-    // 🧪 PRUEBA — barbero temporal del desarrollador
-    // =========================
-    // Mismo horario de Bolon, que es el caso mas exigente: 14 turnos,
-    // los que obligan a la pantalla de jornada y llenan el tope de 10
-    // filas de WhatsApp. Sirve para probar los casos limite.
-    //
-    // Se apaga desde messageHandler.js (testBarberEnabled). Este horario
-    // puede quedarse aqui sin estorbar: si el barbero no esta en la lista,
-    // nadie llega hasta aca.
-    if (barber.toLowerCase().trim() === 'prueba') {
-      if (day === 0) {
-        return [];
-      }
-
-      allSlots = [
-        "9am",
-        "9:35am",
-        "10:10am",
-        "10:45am",
-        "11:20am",
-        "11:55am",
-        "1:30pm",
-        "2:05pm",
-        "2:40pm",
-        "3:15pm",
-        "3:50pm",
-        "4:25pm",
-        "5:00pm",
-        "5:30pm"
-      ];
-    }
+    // Fuente unica: config/barbers.js, o la pestana `horarios` si existe.
+    const allSlots = await obtenerTurnos(barber, day);
 
     const bookedAppointments = rows
       .slice(1)
