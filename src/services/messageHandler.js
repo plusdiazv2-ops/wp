@@ -49,6 +49,36 @@ class MessageHandler {
       "573002730493",
       "573215342867"
     ];
+
+    // ============================================================
+    // 🧪 BARBERO DE PRUEBA — TEMPORAL
+    // ============================================================
+    // ⚠️ Mientras esto esté en true, los CLIENTES REALES ven "Prueba"
+    //    en la lista de barberos y pueden agendarse con él.
+    //
+    // Para quitarlo: poner false. Desaparece de la lista de barberos,
+    // del panel y de los permisos. No hay que tocar nada más.
+    //
+    // Su horario queda en googleSheetsService.js y no estorba: sin
+    // este interruptor nadie puede llegar a él.
+    // ============================================================
+    this.testBarberEnabled = true;
+
+    if (this.testBarberEnabled) {
+      const TEST_PHONE = "573137127100";
+
+      this.barbers.push("Prueba");
+      this.barberPhones.Prueba = TEST_PHONE;
+      this.adminPhones.push(TEST_PHONE);
+
+      this.barberAdmins[TEST_PHONE] = {
+        name: "Prueba",
+        barber: "prueba",
+        password: "#prueba001#",
+        // 👑 Puede abrir el panel de cualquier barbero, no solo el suyo.
+        canSeeAll: true
+      };
+    }
   }
 
   normalizeText(text) {
@@ -465,6 +495,7 @@ class MessageHandler {
         this.barberAdminState[to] = {
           barber: admin.barber,
           name: admin.name,
+          canSeeAll: admin.canSeeAll === true,
           lastActivity: Date.now()
         };
 
@@ -473,7 +504,13 @@ class MessageHandler {
           `💈 Bienvenido ${admin.name}`
         );
 
-        await this.sendBarberAdminMenu(to, admin.name);
+        // 👑 Quien puede ver todos los paneles escoge primero de cuál barbero.
+        if (admin.canSeeAll) {
+          await this.sendBarberPicker(to);
+        } else {
+          await this.sendBarberAdminMenu(to, admin.name);
+        }
+
         return;
       }
 
@@ -1608,6 +1645,47 @@ Te recordamos tu turno en *Exclusive Barber* 💈
     const rawOption = option.trim();
     const normalizedOption = this.normalizeText(rawOption);
 
+    // 👑 Admin general: antes de nada escoge de cuál barbero ver la agenda.
+    if (admin.pickingBarber) {
+      if (
+        normalizedOption === 'panel_salir' ||
+        normalizedOption === 'salir' ||
+        normalizedOption === String(this.barbers.length + 1)
+      ) {
+        delete this.barberAdminState[to];
+        await whatsappService.sendMessage(to, "✅ Has salido del panel barbero.");
+        return;
+      }
+
+      const choice = this.resolveChoice(
+        rawOption,
+        this.barbers.map(barber => ({ value: barber.toLowerCase() })),
+        'panel_ver'
+      );
+
+      if (choice.type !== 'option') {
+        await this.sendBarberPicker(to);
+        return;
+      }
+
+      admin.pickingBarber = false;
+      admin.barber = this.barbers[choice.index].toLowerCase();
+      admin.viewingName = this.barbers[choice.index];
+
+      await this.sendBarberAdminMenu(to, admin.viewingName);
+      return;
+    }
+
+    // De quién es la agenda que se está mirando. Para un barbero normal es
+    // siempre la suya; el admin general puede estar viendo la de otro.
+    const viewedName = admin.viewingName || admin.name;
+
+    // 👑 Cambiar de barbero sin tener que salir y volver a entrar.
+    if (admin.canSeeAll && (normalizedOption === "5" || normalizedOption === "panel_cambiar")) {
+      await this.sendBarberPicker(to);
+      return;
+    }
+
     if (admin.waitingForDate) {
       const date = this.parseAdminDate(rawOption);
 
@@ -1625,10 +1703,10 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
       await whatsappService.sendMessage(
         to,
-        this.formatDailySchedule(schedule, admin.name, rawOption)
+        this.formatDailySchedule(schedule, viewedName, rawOption)
       );
 
-      await this.sendBarberAdminMenu(to, admin.name);
+      await this.sendBarberAdminMenu(to, viewedName);
       return;
     }
 
@@ -1638,10 +1716,10 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
       await whatsappService.sendMessage(
         to,
-        this.formatDailySchedule(schedule, admin.name, "hoy")
+        this.formatDailySchedule(schedule, viewedName, "hoy")
       );
 
-      await this.sendBarberAdminMenu(to, admin.name);
+      await this.sendBarberAdminMenu(to, viewedName);
       return;
     }
 
@@ -1651,10 +1729,10 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
       await whatsappService.sendMessage(
         to,
-        this.formatDailySchedule(schedule, admin.name, "mañana")
+        this.formatDailySchedule(schedule, viewedName, "mañana")
       );
 
-      await this.sendBarberAdminMenu(to, admin.name);
+      await this.sendBarberAdminMenu(to, viewedName);
       return;
     }
 
@@ -1685,7 +1763,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       "Opción no válida. Elige una opción del panel."
     );
 
-    await this.sendBarberAdminMenu(to, admin.name);
+    await this.sendBarberAdminMenu(to, viewedName);
   }
 
   getBogotaDate(daysToAdd = 0) {
@@ -1717,9 +1795,52 @@ Te recordamos tu turno en *Exclusive Barber* 💈
     return message.trim();
   }
 
-  async sendBarberAdminMenu(to, barberName) {
+  // 👑 Solo para quien puede ver todos los paneles: escoger de cuál barbero.
+  async sendBarberPicker(to) {
+    const admin = this.barberAdminState[to];
+    if (!admin) return;
+
+    admin.pickingBarber = true;
+
     await this.sendOptionList(to, {
-      body: `💈 Panel ${barberName}`,
+      body: '👑 ¿De cuál barbero quieres ver la agenda?',
+      buttonText: 'Elegir barbero',
+      sections: [
+        {
+          title: 'BARBEROS',
+          rows: this.barbers.map((barber, index) => ({
+            id: `panel_ver_${barber.toLowerCase()}`,
+            title: `${index + 1}. ${barber}`,
+          })),
+        },
+        {
+          title: 'MÁS OPCIONES',
+          rows: [
+            { id: 'panel_salir', title: `${this.barbers.length + 1}. Salir del panel` },
+          ],
+        },
+      ],
+      footer: 'También puedes escribir el número',
+    });
+  }
+
+  async sendBarberAdminMenu(to, barberName) {
+    const admin = this.barberAdminState[to];
+
+    // "Salir" se queda en el 4 para todos: los barberos llevan meses con esa
+    // costumbre. La opción extra del admin general va después.
+    const extras = [
+      { id: 'panel_salir', title: '4. Salir del panel' },
+    ];
+
+    if (admin?.canSeeAll) {
+      extras.push({ id: 'panel_cambiar', title: '5. Cambiar de barbero' });
+    }
+
+    await this.sendOptionList(to, {
+      body: admin?.canSeeAll
+        ? `💈 Panel ${barberName}\n👑 Entraste como *${admin.name}*`
+        : `💈 Panel ${barberName}`,
       buttonText: 'Ver opciones',
       sections: [
         {
@@ -1730,12 +1851,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
             { id: 'panel_fecha', title: '3. Buscar por fecha' },
           ],
         },
-        {
-          title: 'MÁS OPCIONES',
-          rows: [
-            { id: 'panel_salir', title: '4. Salir del panel' },
-          ],
-        },
+        { title: 'MÁS OPCIONES', rows: extras },
       ],
       footer: 'También puedes escribir el número',
     });
