@@ -5,7 +5,13 @@ import cron from 'node-cron';
 import reminderService from './services/reminderService.js';
 
 const app = express();
-app.use(express.json());
+
+// Se guarda el cuerpo CRUDO además del JSON parseado: la firma de Meta se
+// calcula sobre el texto original, y volver a serializar el JSON da otro
+// texto distinto (orden de claves, espacios) que nunca coincidiría.
+app.use(express.json({
+  verify: (req, res, buf) => { req.rawBody = buf; },
+}));
 
 // Webhook de WhatsApp
 app.use('/', webhookRoutes);
