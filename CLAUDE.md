@@ -212,15 +212,33 @@ La regla se cumple con margen.
 
 ## Webhook de Meta
 
-`webhookController.js` responde **200 a Meta después de procesar todo el mensaje**
-(el `res.sendStatus(200)` está debajo del `await`). Meta queda esperando mientras
-corren las lecturas de Sheets y los envíos de WhatsApp.
+`webhookController.js` responde **200 a Meta ANTES de procesar** el mensaje. El
+procesamiento corre por su cuenta y sus errores se registran sin poder tumbar el
+proceso. **No devuelvas ese `res.sendStatus(200)` abajo del `await`:** Meta se queda
+esperando, da la entrega por fallida y reenvía.
 
-**No hay deduplicación por `message.id`.** Si Meta no recibe el 200 a tiempo, reenvía
-el mismo mensaje y el bot lo procesa de nuevo como si fuera nuevo.
+Hay tres defensas contra los reenvíos, en `services/entregasMeta.js`:
 
-El paso más lento es elegir barbero: dispara 7 lecturas completas de la hoja antes
-de responder. Ver el apartado de riesgos latentes en `MEJORAS.md`.
+1. El 200 rápido, para que Meta no reintente en primer lugar.
+2. **Deduplicación por `message.id`** — el mismo mensaje dos veces se ignora.
+3. **Se descartan los mensajes de más de 15 minutos**, que es lo que llega cuando
+   el webhook estuvo caído y Meta suelta de golpe su cola atrasada.
+
+En las dos últimas, ante la duda se **procesa**: sin `id` o sin `timestamp` válido
+el mensaje pasa. Perder un mensaje real es peor que procesar uno de más.
+
+### ⚠️ Si cambias el dominio en Railway, actualiza Meta el mismo día
+
+**Ya pasó** (10 de agosto de 2026): se le cambió el dominio al servicio para que
+dijera el nombre de la barbería, y Meta se quedó apuntando al viejo. El bot estuvo
+horas sin recibir un solo mensaje.
+
+No hay ninguna alerta que avise. El servicio responde, la web se ve, los logs se ven
+normales — simplemente no llega nada. Y al arreglarlo, Meta suelta toda la cola
+atrasada de golpe (de ahí la defensa 3).
+
+La URL va en: Meta → tu app → WhatsApp → **Configuración** → *URL de devolución de
+llamada*, y termina en `/webhook`.
 
 ## Zona horaria
 

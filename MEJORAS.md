@@ -338,7 +338,26 @@ archivo: ese es el momento natural para dejarlos cubiertos.
 
 ---
 
-## 🕓 Riesgos latentes — reales, pero no urgentes
+## ~~🕓 Riesgos latentes~~ → ✅ OCURRIERON Y SE ARREGLARON
+
+> ### 🔴 Dejaron de ser latentes el 10 de agosto de 2026
+>
+> Pasó lo que estaba escrito aquí abajo. Se le cambió el dominio al servicio en
+> Railway y Meta quedó apuntando al viejo: el bot estuvo horas sin recibir nada.
+> Al arreglar la URL, Meta soltó de golpe toda su cola atrasada y el bot empezó a
+> responder *"No entendí esa opción"* a clientes que no habían tocado nada.
+>
+> **Ya está arreglado** (`services/entregasMeta.js`):
+> 1. El 200 va antes de procesar. Medido: 0,19s en el peor caso.
+> 2. Deduplicación por `message.id`.
+> 3. Se descartan los mensajes de más de 15 minutos.
+>
+> **Lección aparte, más cara que el bug:** cambiar el dominio en Railway deja el
+> webhook de Meta apuntando a una dirección muerta, **sin ninguna alerta**. El
+> servicio responde, la web se ve, los logs se ven normales, y no llega nada.
+> Quedó escrito en `CLAUDE.md`.
+
+### El texto original, para que se entienda por qué se subestimó
 
 Son fallas de verdad y hay que dejarlas escritas, pero **no justifican tocar
 producción ahora mismo**: el volumen actual es bajo (una barbería, tres barberos,
@@ -487,6 +506,8 @@ Antes de arreglar algo de navegación, preguntarse si la Fase 2 se lo va a lleva
 | 9 ago 2026 | Los `id` pasan a llevar nombre (`barbero_bolon`), no números sueltos |
 | 9 ago 2026 | Barbero temporal `Prueba` (`573137127100`) con permiso `canSeeAll`. Apagar con `testBarberEnabled` |
 | 9 ago 2026 | En el panel, "Salir" se queda en el **4** aunque haya opción 5: costumbre de los barberos |
+| 10 ago 2026 | Dominio de Railway cambiado a `exclusivebarber.up.railway.app`. **Hay que actualizar la URL en Meta el mismo día** |
+| 10 ago 2026 | El webhook responde 200 **antes** de procesar, con deduplicación por `message.id` |
 
 ---
 
