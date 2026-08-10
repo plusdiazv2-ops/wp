@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+
+  <title>Entrar al panel · Exclusive Barber</title>
+  <link rel="icon" href="/img/logo.jpg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/css/estilos.css" />
+  <link rel="stylesheet" href="/css/panel.css" />
+</head>
+
+<body>
+  <div class="grano" aria-hidden="true"></div>
+
+  <main class="panel">
+    <img class="panel__logo" src="/img/logo.jpg" alt="Exclusive Barber" />
+
+    <p class="panel__etiqueta">Panel de administración</p>
+    <h1 class="panel__titulo">Entrar</h1>
+
+    <ol class="panel__pasos">
+      <li>Escríbele <strong>acceso</strong> al bot por WhatsApp.</li>
+      <li>Te responde un código de 6 dígitos.</li>
+      <li>Escríbelo aquí abajo.</li>
+    </ol>
+
+    <form class="panel__form" id="formulario" novalidate>
+      <label class="panel__campo">
+        <span>Tu número de WhatsApp</span>
+        <input
+          type="tel"
+          name="telefono"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="573001112233"
+          required
+        />
+      </label>
+
+      <label class="panel__campo">
+        <span>Código de 6 dígitos</span>
+        <input
+          type="text"
+          name="codigo"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          placeholder="000000"
+          required
+        />
+      </label>
+
+      <p class="panel__error" id="error" hidden></p>
+
+      <button class="boton-principal panel__enviar" type="submit">Entrar</button>
+    </form>
+
+    <p class="panel__volver"><a href="/">← Ir a la página de la barbería</a></p>
+  </main>
+
+  <script src="/js/panel.js"></script>
+</body>
+</html>

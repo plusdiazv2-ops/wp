@@ -1,0 +1,135 @@
+/* Panel de administración. Mismos colores del logo que la web pública. */
+
+.panel {
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 4rem;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.panel__logo {
+  width: min(240px, 60vw);
+  margin: 0 auto 1.5rem;
+  -webkit-mask-image: radial-gradient(ellipse 60% 56% at 50% 50%, #000 40%, transparent 76%);
+  mask-image: radial-gradient(ellipse 60% 56% at 50% 50%, #000 40%, transparent 76%);
+}
+
+.panel__etiqueta {
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dorado);
+}
+
+.panel__titulo {
+  margin: 0 0 1.75rem;
+  font-family: var(--display);
+  font-size: clamp(2rem, 8vw, 2.8rem);
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--crema);
+}
+
+.panel__pasos {
+  margin: 0 0 2rem;
+  padding-left: 1.2rem;
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+}
+.panel__pasos li { margin-bottom: 0.4rem; }
+.panel__pasos strong { color: var(--dorado); }
+
+.panel__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: left;
+}
+
+.panel__campo span {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+}
+
+.panel__campo input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(201, 168, 106, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--texto);
+  font-family: var(--cuerpo);
+  font-size: 1rem;
+  transition: border-color 180ms var(--curva);
+}
+
+.panel__campo input:focus {
+  outline: none;
+  border-color: var(--dorado);
+}
+
+.panel__campo input::placeholder { color: #6b6359; }
+
+/* El código se lee mejor espaciado */
+.panel__campo input[name="codigo"] {
+  letter-spacing: 0.5em;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.panel__enviar {
+  justify-content: center;
+  margin-top: 0.5rem;
+  animation: none;   /* aquí no hace falta la entrada de la portada */
+}
+
+.panel__error {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid #e06666;
+  border-radius: 0 8px 8px 0;
+  background: rgba(224, 102, 102, 0.1);
+  font-size: 0.88rem;
+  color: #f0b5b5;
+}
+
+.panel__texto {
+  margin: 0 0 2rem;
+  color: var(--texto-suave);
+}
+.panel__texto strong { color: var(--crema); }
+
+.panel__pendiente {
+  margin-bottom: 2rem;
+  padding: 1.1rem 1.25rem;
+  border-left: 3px solid var(--dorado);
+  border-radius: 0 8px 8px 0;
+  background: rgba(201, 168, 106, 0.08);
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+}
+.panel__pendiente p { margin: 0 0 0.5rem; }
+.panel__pendiente ul { margin: 0; padding-left: 1.1rem; }
+.panel__pendiente li { margin-bottom: 0.25rem; }
+
+.panel__volver {
+  margin: 2rem 0 0;
+  font-size: 0.85rem;
+}
+.panel__volver a {
+  color: var(--texto-suave);
+  text-decoration: none;
+}
+.panel__volver a:hover { color: var(--dorado); }

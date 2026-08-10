@@ -2,10 +2,15 @@ import express from 'express';
 import path from 'node:path';
 import config from './config/env.js';
 import webhookRoutes from './routes/webhookRoutes.js';
+import panelRoutes from './routes/panelRoutes.js';
 import cron from 'node-cron';
 import reminderService from './services/reminderService.js';
 
 const app = express();
+
+// Railway termina el HTTPS antes de llegar a Node. Sin esto, req.secure sería
+// siempre false y la cookie del panel nunca saldría marcada como segura.
+app.set('trust proxy', 1);
 
 // Se guarda el cuerpo CRUDO además del JSON parseado: la firma de Meta se
 // calcula sobre el texto original, y volver a serializar el JSON da otro
@@ -16,6 +21,11 @@ app.use(express.json({
 
 // Webhook de WhatsApp. Va PRIMERO: el bot manda sobre la web.
 app.use('/', webhookRoutes);
+
+// Panel de administración. Va ANTES de los archivos estáticos para poder
+// mandar directo adentro a quien ya tiene sesión, en vez de mostrarle otra
+// vez la pantalla de entrar.
+app.use('/', panelRoutes);
 
 // Web de presentación de la barbería.
 // Son archivos estáticos: no ejecutan nada y no pueden tumbar el bot.
