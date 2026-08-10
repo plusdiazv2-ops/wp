@@ -52,10 +52,28 @@ src/
 └── httpRequest/sendToWhatsApp.js
 ```
 
-## Los tres barberos
+## Los barberos
 
 `Bolon`, `Julian`, `Ladino` — definidos en `messageHandler.js` (`this.barbers`,
 `this.barberPhones`, `this.barberAdmins`, `this.adminPhones`).
+
+### 🧪 Y un cuarto temporal: `Prueba`
+
+Barbero de pruebas del desarrollador (`573137127100`, contraseña `#prueba001#`).
+⚠️ **Mientras esté activo los clientes reales lo ven y pueden agendarse con él.**
+
+Todo cuelga de un interruptor en el constructor:
+
+```js
+this.testBarberEnabled = true;   // ponerlo en false lo quita de todo
+```
+
+Su horario está en `googleSheetsService.js` y puede quedarse ahí aunque se apague:
+si no está en la lista de barberos, nadie llega hasta él.
+
+Tiene el permiso `canSeeAll`, que **no tienen los demás**: al entrar con su
+contraseña primero escoge de cuál barbero ver la agenda, y dentro del panel gana
+una opción 5 para cambiar de barbero sin salir.
 
 **Sus horarios NO están en `messageHandler.js`.** Están duplicados en
 `googleSheetsService.js`, dentro de DOS funciones distintas:
@@ -82,7 +100,7 @@ Reglas por barbero (resumen — la fuente de verdad es el código):
 
 ```
 "hola" → menú con 3 botones
-  1️⃣ Agendar turno → nombre → barbero → fecha → hora → confirmación
+  1️⃣ Agendar turno → nombre → barbero → fecha → [jornada] → hora → confirmación
   2️⃣ Cancelar turno → lista de turnos próximos → confirmar
   3️⃣ Ubicación → mapa + contacto
 ```
@@ -90,14 +108,40 @@ Reglas por barbero (resumen — la fuente de verdad es el código):
 Al confirmar: guarda fila en Sheets → envía template `nuevo_turno_barbero` al
 barbero → envía confirmación al cliente.
 
-**Navegación global** — ⚠️ **no funciona en todos los pasos.** Estado real hoy:
+### Las pantallas son listas nativas, no texto con números
 
-- Escribir `menu` → vuelve al inicio. **Este sí funciona siempre**, incluso dentro del
+Desde el rediseño de agosto 2026 (ver `DISENO-FLUJO.md`), el cliente **toca** las
+opciones. Sigue funcionando escribir el número: **va visible en cada fila** y la
+convención de siempre se conserva.
+
+| Pantalla | Tipo |
+|---|---|
+| Menú principal | Botones (3) |
+| Nombre | Texto libre |
+| Barbero · Fecha · Hora · Cancelar · Panel | **Lista** |
+| Jornada · Confirmar cancelación | Botones |
+
+**El paso de jornada (Mañana/Tarde) no siempre aparece.** Existe solo porque los
+turnos no caben en una lista. Si caben todos (8 o menos), se salta y el cliente ve
+mañana y tarde en sentido de secciones dentro de una misma lista.
+
+⚠️ **Tope de 10 filas por lista.** Pasarse hace que Meta rechace el mensaje entero y
+el cliente **no recibe nada** — no es que se vea feo, es que no llega. Por eso toda
+lista se arma con `sendOptionList()`, que cuenta las filas, sacrifica la de "Menú
+principal" si sobra, y deja aviso en los logs. **No armes listas por fuera de ahí.**
+
+**Identificadores:** con nombre, no números sueltos — `barbero_bolon`, `fecha_2026-08-10`,
+`hora_5:00pm`, `nav_volver`, `panel_hoy`. Eso es lo que permite distinguir una respuesta
+de la pantalla actual de un botón viejo del historial (`isFlowOption()`).
+Los del menú principal siguen siendo `1`, `2`, `3`.
+
+**Navegación global** — estado real hoy:
+
+- Escribir `menu` → vuelve al inicio. **Funciona siempre**, incluso dentro del
   panel del barbero (lo saca del panel al menú de cliente sin avisarle).
-- Escribir `volver` o `atras` → paso anterior. Funciona en barbero, fecha, hora y en
-  la confirmación de cancelación. **NO funciona en el paso del nombre** — ahí el texto
-  "volver" **se guarda como el nombre del cliente** (bug conocido, pendiente).
-  Tampoco funciona en el panel del barbero.
+- Escribir `volver` o `atras` → paso anterior. Funciona en **todos** los pasos del
+  cliente, incluido el del nombre (arreglado en agosto 2026). **No** funciona en el
+  panel del barbero.
 - Escribir `cancelar` o `salir` → abandona el flujo. Funciona en los flujos de cliente.
   En el panel del barbero, `salir` funciona como opción 4, pero `cancelar` no hace nada.
 - Numéricamente: opción **N+1 = Volver**, **N+2 = Menú principal**
@@ -119,14 +163,18 @@ barberos (`adminPhones`) no tienen límite.
 ## Panel del barbero
 
 Se activa cuando el barbero escribe **su contraseña exacta** desde su número
-registrado (definidas en `this.barberAdmins`). Opciones:
+registrado (definidas en `this.barberAdmins`). Es una lista:
 
 ```
 1. Ver agenda de hoy
 2. Ver agenda de mañana
 3. Buscar agenda por fecha (DD/MM/AAAA)
-4. Salir
+4. Salir del panel
+5. Cambiar de barbero      ← solo para quien tiene canSeeAll
 ```
+
+**"Salir" se queda en el 4 para todos** aunque haya una opción 5: los barberos
+llevan meses con esa costumbre. La opción extra va después, no antes.
 
 Muestra 🟢 libre / 🔴 ocupado con nombre y teléfono del cliente (sin el 57).
 

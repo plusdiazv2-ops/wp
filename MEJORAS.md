@@ -32,7 +32,14 @@ JSON **no funciona**.
 
 El orden de trabajo. Los números remiten al detalle de más abajo.
 
-### Fase 1 — Preparar el terreno
+> ### ✅ Fases 1 y 2 completadas — 9 de agosto de 2026
+>
+> El chat ya funciona con listas nativas. Lo único que queda de la Fase 2 son las
+> **imágenes de los barberos**, pendientes de que el dueño consiga las fotos.
+>
+> **La siguiente es la Fase 3.**
+
+### Fase 1 — Preparar el terreno ✅
 *Hay que hacerlo antes de tocar los menús.*
 
 - **Punto 2** — el botón viejo en agendamiento
@@ -42,7 +49,7 @@ El orden de trabajo. Los números remiten al detalle de más abajo.
 - **Punto 11** — responder algo a las notas de voz
   → Barato, independiente de todo, y es justo lo que significa "profesional".
 
-### Fase 2 — El rediseño del chat ⭐
+### Fase 2 — El rediseño del chat ⭐ ✅ *(salvo las fotos)*
 *Lo que de verdad se busca.*
 
 1. **Diseñar el flujo pantalla por pantalla** y que el dueño lo apruebe **antes** de
@@ -122,7 +129,7 @@ ambas funciones lo importen. Bajo riesgo, alto beneficio.
 están encadenados con `if / else if`, y en `getDailyScheduleByBarber()` son tres `if`
 sueltos. No cambia el comportamiento, pero no los unifiques a ciegas.)*
 
-### 2. 🔮 Un botón viejo a mitad del agendamiento descuadra el flujo
+### 2. ✅ HECHO — Un botón viejo a mitad del agendamiento descuadra el flujo
 La rama de mensajes interactivos (`messageHandler.js`, ~línea 374) revisa
 `barberAdminState`, `cancelState` y `assistantState` — pero **no revisa
 `appointmentState`**.
@@ -148,7 +155,7 @@ Ese tercer caso es el que justifica el arreglo; los otros dos solos no lo justif
 **Solución:** incluir `appointmentState` en esa cadena de `if`, igual que en la rama
 de mensajes de texto.
 
-### 3. 🔮 Escribir "volver" en el paso del nombre se guarda como nombre
+### 3. ✅ HECHO — Escribir "volver" en el paso del nombre se guarda como nombre
 `handleBack()` no tiene ninguna regla para el paso `name` y devuelve `false`
 (~línea 175). El mensaje sigue de largo y `handleAppointmentFlow` lo toma como el
 nombre del cliente (~línea 564).
@@ -282,7 +289,7 @@ sí muestra agenda completa un domingo**, lo cual confunde.
 igual que los otros dos. Si ya se hizo el punto 1 (`config/barbers.js`), esto es una
 sola línea en un solo lugar — por eso conviene hacerlo *después* del punto 1 y no antes.
 
-### 11. 🔮 Una nota de voz recibe silencio absoluto
+### 11. ✅ HECHO — Una nota de voz recibe silencio absoluto
 `handleIncomingMessage()` solo maneja dos tipos de mensaje: `text` e `interactive`.
 **No hay ningún `else`.**
 
@@ -389,10 +396,23 @@ expiración. Hacer esto *después* de arreglar el 200, no antes.
 
 **No borrar nada de esto sin confirmarlo primero.**
 
-Código que ya no se usa *(verificado con búsqueda en todo `src/`)*:
+Código que ya no se usa *(recontado el 9 de agosto de 2026, después del rediseño)*:
+
+**Quedaron sin uso al migrar a listas:**
+- `handleNavigationNumber()` — la reemplazó `resolveChoice()`
+- `getNavigationNumber()` — solo la llamaba la anterior
+
+**Ojo, estas dos SÍ siguen vivas** aunque lo parezcan:
+- `buildNavigationFooter()` — la usan los dos avisos del paso de la hora
+  ("ya tienes 2 turnos" y "ese horario ya fue tomado"), que siguen siendo texto
+  plano. Son la última inconsistencia visual que queda del rediseño.
+- `numberToEmoji()` — la usa `buildNavigationFooter()`
+
+**De antes del rediseño:**
 - `generateAvailableSlots()` — reemplazado por los horarios por barbero
 - `formatAppointmentsList()` — reemplazado por `formatDailySchedule()`
-- `parseTime()` — duplica lo que hace `buildAppointmentDateTime()` y `slotToMinutes()`
+- ~~`parseTime()`~~ — **ya no está muerta.** El rediseño la usa en
+  `splitSlotsByPeriod()` para partir mañana/tarde. No la borres.
 - `sendLocation()` — duplica `sendLocationAndContact()`
 - `isSlotAvailable()` y `getBookedSlots()` — nunca se importan
 - `getAppointmentsByBarberAndDate()` — se importa pero nunca se llama
@@ -461,6 +481,12 @@ Antes de arreglar algo de navegación, preguntarse si la Fase 2 se lo va a lleva
 | 9 ago 2026 | Formato de hora con minutos (`5:00pm`, no `5pm`), igual que Julian y Ladino |
 | 9 ago 2026 | Números de lista con emoji doble para dos cifras (`1️⃣2️⃣`) |
 | 9 ago 2026 | Rumbo definido: chat profesional en WhatsApp, gestión en web dentro de Railway |
+| 9 ago 2026 | Diseño del flujo aprobado (`DISENO-FLUJO.md`) |
+| 9 ago 2026 | El corte mañana/tarde es a las **12:00**, no en el almuerzo: el miércoles Julian trabaja seguido y no hay dónde cortar |
+| 9 ago 2026 | La pantalla de jornada **se salta** cuando los turnos caben en una lista (8 o menos) |
+| 9 ago 2026 | Los `id` pasan a llevar nombre (`barbero_bolon`), no números sueltos |
+| 9 ago 2026 | Barbero temporal `Prueba` (`573137127100`) con permiso `canSeeAll`. Apagar con `testBarberEnabled` |
+| 9 ago 2026 | En el panel, "Salir" se queda en el **4** aunque haya opción 5: costumbre de los barberos |
 
 ---
 
