@@ -173,12 +173,24 @@ class MessageHandler {
     if (this.appointmentState[to]) {
       const state = this.appointmentState[to];
 
+      // Antes de esto no había regla para el paso del nombre: handleBack()
+      // devolvía false, el mensaje seguía de largo y "volver" terminaba
+      // GUARDADO COMO EL NOMBRE DEL CLIENTE. El barbero recibía la
+      // notificación de un turno a nombre de "volver".
+      //
+      // Antes del nombre no hay ningún paso, así que volver es el menú.
+      if (state.step === 'name') {
+        this.clearAllStates(to);
+        await this.sendMainMenu(to);
+        return true;
+      }
+
       if (state.step === 'barber') {
         state.step = 'name';
         this.resetError(to);
         await whatsappService.sendMessage(
           to,
-          `👤 Escribe nuevamente tu nombre:\n\n(Ejemplo: Juan Pérez)\n\n5️⃣ Menú principal`
+          `👤 Escribe nuevamente tu nombre:\n\n(Ejemplo: Juan Pérez)\n\n5️⃣ Menú principal\n\nTambién puedes escribir *menu* o *volver*.`
         );
         return true;
       }
@@ -725,7 +737,7 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
           step: 'name',
           lastActivity: Date.now()
         };
-        response = `👤 Para comenzar, escribe tu nombre:\n\n(Ejemplo: Juan Pérez)\n\n5️⃣ Menú principal`;
+        response = `👤 Para comenzar, escribe tu nombre:\n\n(Ejemplo: Juan Pérez)\n\n5️⃣ Menú principal\n\nTambién puedes escribir *menu* o *volver*.`;
         await whatsappService.sendMessage(to, response);
         break;
 
@@ -853,7 +865,7 @@ Si necesitas cancelar tu turno:
         if (!cleanInput) {
           await whatsappService.sendMessage(
             to,
-            '❌ Escribe tu nombre para continuar.\n\n5️⃣ Menú principal'
+            '❌ Escribe tu nombre para continuar.\n\n5️⃣ Menú principal\n\nTambién puedes escribir *menu* o *volver*.'
           );
           return;
         }
