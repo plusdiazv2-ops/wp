@@ -269,7 +269,7 @@ class MessageHandler {
   // desde siempre. Así se distingue una respuesta de la pantalla actual
   // de un botón viejo que quedó arriba en el chat.
   isFlowOption(option) {
-    return /^(barbero|fecha|jornada|hora|cancelar|nav)_/.test(String(option || ''));
+    return /^(barbero|fecha|jornada|hora|cancelar|confirmar|panel|nav)_/.test(String(option || ''));
   }
 
   /**
@@ -599,7 +599,17 @@ class MessageHandler {
 
       } else if (this.cancelState[to]) {
         this.cancelState[to].lastActivity = Date.now();
-        await this.handleCancelFlow(to, option);
+
+        // Misma protección que en el agendamiento: un id sin prefijo viene de
+        // un menú viejo del historial, no de la pantalla actual.
+        if (this.isFlowOption(option)) {
+          await this.handleCancelFlow(to, option);
+        } else {
+          await whatsappService.sendMessage(
+            to,
+            '⚠️ Esa opción es de un menú anterior.\n\nElige un turno de la lista, o escribe *menu* para empezar de nuevo.'
+          );
+        }
 
       } else if (this.assistantState[to]) {
         this.assistantState[to].lastActivity = Date.now();
@@ -1069,33 +1079,32 @@ Si necesitas cancelar tu turno:
 
   async handleCancelFlow(to, message) {
     const state = this.cancelState[to];
-    const cleanInput = message.trim();
 
     if (state.step === 'select_cancel') {
-      const optionsCount = state.appointments?.length || 0;
+      const appointments = state.appointments || [];
+      const choice = this.resolveChoice(
+        message,
+        appointments.map(appointment => ({ value: appointment.rowNumber })),
+        'cancelar'
+      );
 
-      const navHandled = await this.handleNavigationNumber(to, cleanInput, optionsCount);
-      if (navHandled) return;
+      if (choice.type === 'back' || choice.type === 'menu') {
+        delete this.cancelState[to];
+        this.resetError(to);
+        await this.sendMainMenu(to);
+        return;
+      }
 
-      if (!/^\d+$/.test(cleanInput)) {
-        await whatsappService.sendMessage(
+      if (choice.type !== 'option') {
+        await this.sendCancelAppointmentList(
           to,
-          `❌ Respuesta inválida. Responde solo con el número del turno.${this.buildNavigationFooter(optionsCount)}`
+          appointments,
+          '❌ No entendí esa opción.\n\n✍️ Elige el turno que deseas cancelar:'
         );
         return;
       }
 
-      const index = parseInt(cleanInput, 10) - 1;
-
-      if (index < 0 || index >= state.appointments.length) {
-        await whatsappService.sendMessage(
-          to,
-          `❌ Número fuera de rango. Intenta nuevamente.${this.buildNavigationFooter(optionsCount)}`
-        );
-        return;
-      }
-
-      state.selectedAppointment = state.appointments[index];
+      state.selectedAppointment = appointments[choice.index];
       state.step = 'confirm_cancel';
 
       await this.sendCancelConfirmation(to, state.selectedAppointment);
@@ -1103,10 +1112,27 @@ Si necesitas cancelar tu turno:
     }
 
     if (state.step === 'confirm_cancel') {
-      const navHandled = await this.handleNavigationNumber(to, cleanInput, 2);
-      if (navHandled) return;
+      const choice = this.resolveChoice(
+        message,
+        [{ value: 'si' }, { value: 'no' }],
+        'confirmar'
+      );
 
-      if (cleanInput === '1') {
+      if (choice.type === 'back') {
+        state.step = 'select_cancel';
+        delete state.selectedAppointment;
+        this.resetError(to);
+        await this.sendCancelAppointmentList(to, state.appointments);
+        return;
+      }
+
+      if (choice.type === 'menu') {
+        this.clearAllStates(to);
+        await this.sendMainMenu(to);
+        return;
+      }
+
+      if (choice.type === 'option' && choice.index === 0) {
         const appt = state.selectedAppointment;
 
         const result = await updateAppointmentStatus(
@@ -1136,7 +1162,7 @@ Si necesitas cancelar tu turno:
         return;
       }
 
-      if (cleanInput === '2') {
+      if (choice.type === 'option' && choice.index === 1) {
         delete this.cancelState[to];
         this.resetError(to);
 
@@ -1147,10 +1173,7 @@ Si necesitas cancelar tu turno:
         return;
       }
 
-      await whatsappService.sendMessage(
-        to,
-        `❌ Respuesta inválida.\n1️⃣ Sí\n2️⃣ No${this.buildNavigationFooter(2)}`
-      );
+      await this.sendCancelConfirmation(to, state.selectedAppointment);
     }
   }
 
@@ -1437,32 +1460,51 @@ ${disponibles.length + 1}. ⬅️ Volver`;
     });
   }
 
-  async sendCancelAppointmentList(to, appointments) {
-    let message = `📋 *Estos son tus turnos próximos:*\n\n`;
+  async sendCancelAppointmentList(to, appointments, customBody = null) {
+    const total = appointments.length;
 
-    appointments.forEach((appointment, index) => {
-      message += `${this.numberToEmoji(index + 1)} *${appointment.displayDate}* - ${appointment.time}\n`;
-      message += `💈 Barbero: ${appointment.barber}\n\n`;
+    await this.sendOptionList(to, {
+      body: customBody
+        || `📋 *Estos son tus turnos próximos:*\n\n✍️ Elige el turno que deseas cancelar.`,
+      buttonText: 'Elegir turno',
+      sections: [
+        {
+          title: 'TURNOS CONFIRMADOS',
+          rows: appointments.map((appointment, index) => ({
+            id: `cancelar_${appointment.rowNumber}`,
+            title: `${index + 1}. ${this.formatShortDate(appointment.date)} · ${appointment.time}`,
+            description: `${appointment.displayDate} · 💈 ${appointment.barber}`,
+          })),
+        },
+        {
+          title: 'MÁS OPCIONES',
+          rows: [
+            { id: 'nav_volver', title: `${total + 1}. ⬅️ Volver` },
+            { id: 'nav_menu', title: `${total + 2}. 🏠 Menú principal`, optional: true },
+          ],
+        },
+      ],
+      footer: 'También puedes escribir el número',
     });
-
-    message += `✍️ Responde con el número del turno que deseas cancelar.`;
-    message += this.buildNavigationFooter(appointments.length);
-
-    await whatsappService.sendMessage(to, message);
   }
 
   async sendCancelConfirmation(to, appointment) {
-    await whatsappService.sendMessage(
-      to,
-      `📋 *Confirma la cancelación:*\n\n` +
-      `👤 ${appointment.name}\n` +
-      `💈 ${appointment.barber}\n` +
-      `📅 ${appointment.displayDate}\n` +
-      `⏰ ${appointment.time}\n\n` +
-      `1️⃣ Sí cancelar\n` +
-      `2️⃣ No` +
-      this.buildNavigationFooter(2)
-    );
+    const body = `📋 *Confirma la cancelación:*
+
+👤 ${appointment.name}
+💈 ${appointment.barber}
+📅 ${appointment.displayDate}
+⏰ ${appointment.time}
+
+1. ✅ Sí, cancelar
+2. ❌ No, dejarlo
+3. ⬅️ Volver`;
+
+    await whatsappService.sendInteractiveButtons(to, body, [
+      { type: 'reply', reply: { id: 'confirmar_si', title: '✅ Sí, cancelar' } },
+      { type: 'reply', reply: { id: 'confirmar_no', title: '❌ No, dejarlo' } },
+      { type: 'reply', reply: { id: 'nav_volver', title: '⬅️ Volver' } },
+    ]);
   }
 
   async sendLocationAndContact(to) {
@@ -1590,7 +1632,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       return;
     }
 
-    if (normalizedOption === "1" || normalizedOption === "hoy") {
+    if (normalizedOption === "1" || normalizedOption === "hoy" || normalizedOption === "panel_hoy") {
       const today = this.getBogotaDate(0);
       const schedule = await getDailyScheduleByBarber(admin.barber, today);
 
@@ -1603,7 +1645,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       return;
     }
 
-    if (normalizedOption === "2" || normalizedOption === "manana" || normalizedOption === "mañana") {
+    if (normalizedOption === "2" || normalizedOption === "manana" || normalizedOption === "mañana" || normalizedOption === "panel_manana") {
       const tomorrow = this.getBogotaDate(1);
       const schedule = await getDailyScheduleByBarber(admin.barber, tomorrow);
 
@@ -1616,7 +1658,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       return;
     }
 
-    if (normalizedOption === "3") {
+    if (normalizedOption === "3" || normalizedOption === "panel_fecha") {
       admin.waitingForDate = true;
 
       await whatsappService.sendMessage(
@@ -1627,7 +1669,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
       return;
     }
 
-    if (normalizedOption === "4" || normalizedOption === "salir") {
+    if (normalizedOption === "4" || normalizedOption === "salir" || normalizedOption === "panel_salir") {
       delete this.barberAdminState[to];
 
       await whatsappService.sendMessage(
@@ -1676,15 +1718,27 @@ Te recordamos tu turno en *Exclusive Barber* 💈
   }
 
   async sendBarberAdminMenu(to, barberName) {
-    await whatsappService.sendMessage(
-      to,
-      `💈 Panel ${barberName}
-
-  1. Ver agenda de hoy
-  2. Ver agenda de mañana
-  3. Buscar agenda por fecha
-  4. Salir`
-    );
+    await this.sendOptionList(to, {
+      body: `💈 Panel ${barberName}`,
+      buttonText: 'Ver opciones',
+      sections: [
+        {
+          title: 'AGENDA',
+          rows: [
+            { id: 'panel_hoy', title: '1. Ver agenda de hoy' },
+            { id: 'panel_manana', title: '2. Ver agenda de mañana' },
+            { id: 'panel_fecha', title: '3. Buscar por fecha' },
+          ],
+        },
+        {
+          title: 'MÁS OPCIONES',
+          rows: [
+            { id: 'panel_salir', title: '4. Salir del panel' },
+          ],
+        },
+      ],
+      footer: 'También puedes escribir el número',
+    });
   }
 
   parseAdminDate(value) {
