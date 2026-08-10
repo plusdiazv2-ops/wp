@@ -177,6 +177,63 @@ export const obtenerTurnos = async (barbero, dia) => {
   return turnosPorDefecto(clave, dia);
 };
 
+// ============================================================
+// ADMINS DE LA WEB — pestaña `admins_web`
+// ============================================================
+// Una fila por admin agregado desde el panel:
+//
+//   A: Teléfono      B: Nombre
+//   573146926477     Bolon
+//
+// El admin principal NO vive aquí, vive en la variable ADMIN_PRINCIPAL.
+// Así, si alguien se equivoca editando esta pestaña o la borra, todavía
+// queda una forma de entrar.
+//
+// Pestaña ausente = no hay admins agregados. No es un error.
+const PESTANA_ADMINS = 'admins_web';
+const CACHE_ADMINS_MS = 2 * 60 * 1000;
+
+let cacheAdmins = { datos: null, momento: 0 };
+
+export const limpiarCacheAdmins = () => {
+  cacheAdmins = { datos: null, momento: 0 };
+};
+
+export const obtenerAdminsWeb = async () => {
+  const vigente = cacheAdmins.datos
+    && (Date.now() - cacheAdmins.momento) < CACHE_ADMINS_MS;
+
+  if (vigente) return cacheAdmins.datos;
+
+  let datos = [];
+
+  try {
+    const authClient = await getAuthClient();
+
+    const respuesta = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${PESTANA_ADMINS}'!A:B`,
+      auth: authClient,
+    });
+
+    datos = (respuesta.data.values || [])
+      .slice(1)
+      .map(fila => ({
+        telefono: String(fila[0] || '').replace(/\D/g, ''),
+        nombre: String(fila[1] || '').trim(),
+      }))
+      .filter(admin => admin.telefono);
+  } catch (error) {
+    console.log(
+      `Pestaña "${PESTANA_ADMINS}" no disponible, solo entra el admin principal:`,
+      error?.message || error
+    );
+  }
+
+  cacheAdmins = { datos, momento: Date.now() };
+  return datos;
+};
+
 // GUARDAR FILA
 async function addRowSheet(auth, values) {
   const request = {

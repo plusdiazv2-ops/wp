@@ -7,8 +7,11 @@ import appendToSheet, {
   countUserAppointmentsSameDay,
   getAppointmentsByBarberAndDate,
   getDailyScheduleByBarber,
+  obtenerAdminsWeb,
   SheetsUnavailableError,
 } from './googleSheetsService.js';
+import config from '../config/env.js';
+import { puedeEntrar, generarCodigo, VIGENCIA_MS } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
 
 class MessageHandler {
@@ -548,6 +551,16 @@ class MessageHandler {
         return;
       }
 
+      // 🔐 Código para entrar al panel web.
+      // Va aquí arriba, al mismo nivel que la contraseña del barbero: es un
+      // comando deliberado y debe funcionar aunque el admin esté a mitad de
+      // otro flujo.
+      if (incomingMessage === 'acceso') {
+        await this.handleAccesoPanel(to);
+        await whatsappService.markAsRead(message.id);
+        return;
+      }
+
       const activeState =
         this.appointmentState[to] ||
         this.cancelState[to] ||
@@ -720,6 +733,54 @@ class MessageHandler {
 
       await whatsappService.markAsRead(message.id);
     }
+  }
+
+  /**
+   * Responde al comando `acceso`: entrega un código para el panel web.
+   *
+   * A quien no tiene permiso se le responde algo genérico a propósito, para
+   * no confirmarle a un desconocido que existe un panel.
+   */
+  async handleAccesoPanel(to) {
+    let adminsExtra = [];
+
+    try {
+      adminsExtra = (await obtenerAdminsWeb()).map(admin => admin.telefono);
+    } catch (error) {
+      // La pestaña de admins es opcional. Si falla, queda el principal.
+      console.log('No se pudo leer la lista de admins:', error?.message || error);
+    }
+
+    if (!puedeEntrar(to, adminsExtra)) {
+      console.log(`🔐 Código de panel negado a ${to}: no está autorizado.`);
+
+      await whatsappService.sendMessage(
+        to,
+        'No entendí tu mensaje. Escribe *menu* para ver las opciones disponibles.'
+      );
+      return;
+    }
+
+    const codigo = generarCodigo(to);
+    const minutos = Math.round(VIGENCIA_MS / 60000);
+
+    console.log(`🔐 Código de panel entregado a ${to}.`);
+
+    await whatsappService.sendMessage(
+      to,
+      `🔐 *Acceso al panel*
+
+Tu código es:
+
+*${codigo}*
+
+Válido por ${minutos} minutos y de un solo uso.
+
+Entra a:
+${config.URL_PUBLICA}/panel
+
+Si no fuiste tú quien lo pidió, ignora este mensaje.`
+    );
   }
 
   getSenderName(senderInfo) {
