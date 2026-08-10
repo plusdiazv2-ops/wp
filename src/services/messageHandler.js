@@ -7,6 +7,7 @@ import appendToSheet, {
   countUserAppointmentsSameDay,
   getAppointmentsByBarberAndDate,
   getDailyScheduleByBarber,
+  SheetsUnavailableError,
 } from './googleSheetsService.js';
 import geminiAiService from './geminiAiService.js';
 
@@ -487,6 +488,27 @@ class MessageHandler {
   }
 
   async handleIncomingMessage(message, senderInfo) {
+    try {
+      await this.procesarMensaje(message, senderInfo);
+    } catch (error) {
+      if (!(error instanceof SheetsUnavailableError)) throw error;
+
+      // Google Sheets no respondió. Antes esto le llegaba al cliente
+      // disfrazado de "no hay turnos disponibles" y se iba creyendo que
+      // la barbería estaba llena. Un solo sitio para decir la verdad.
+      console.error('⚠️', error.message);
+
+      const to = message?.from;
+      if (!to) return;
+
+      await whatsappService.sendMessage(
+        to,
+        '⚠️ No puedo consultar la agenda en este momento.\n\nIntenta de nuevo en un minuto 🙏'
+      );
+    }
+  }
+
+  async procesarMensaje(message, senderInfo) {
     if (message?.type === 'text') {
       const incomingMessage = this.normalizeText(message.text.body);
       const to = message.from;

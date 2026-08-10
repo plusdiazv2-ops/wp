@@ -9,29 +9,62 @@ import {
 
 const sheets = google.sheets('v4');
 
-const getAuthClient = async () => {
-  try {
-    let auth;
-
-    if (process.env.GOOGLE_CREDENTIALS_JSON) {
-      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
-
-      auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-      });
-    } else {
-      auth = new google.auth.GoogleAuth({
-        keyFile: path.join(process.cwd(), 'src/credentials', 'credentials.json'),
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-      });
-    }
-
-    return await auth.getClient();
-  } catch (error) {
-    console.error('Error cargando credenciales de Google:', error);
-    throw error;
+/**
+ * Se lanza cuando Google Sheets no responde.
+ *
+ * Existe para poder distinguir "la agenda está vacía" de "no pude leer la
+ * agenda". Antes las dos cosas se veían igual —una lista vacía— y el bot
+ * terminaba ofreciendo turnos ya vendidos.
+ */
+export class SheetsUnavailableError extends Error {
+  constructor(causa) {
+    super(`Google Sheets no respondió: ${causa?.message || causa}`);
+    this.name = 'SheetsUnavailableError';
+    this.causa = causa;
   }
+}
+
+// El cliente de autenticación se creaba de cero en CADA función. Ahora se
+// crea una sola vez: la librería de Google renueva el token por dentro.
+let clienteAuth = null;
+
+const getAuthClient = async () => {
+  if (clienteAuth) return clienteAuth;
+
+  clienteAuth = (async () => {
+    try {
+      let auth;
+
+      if (process.env.GOOGLE_CREDENTIALS_JSON) {
+        const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
+        auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+      } else {
+        auth = new google.auth.GoogleAuth({
+          keyFile: path.join(process.cwd(), 'src/credentials', 'credentials.json'),
+          scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+      }
+
+      return await auth.getClient();
+    } catch (error) {
+      // Unas credenciales vencidas o mal puestas dejan al bot igual de ciego
+      // que un fallo de lectura. Si esto se tragara, el bot creería que no
+      // hay ningún turno ocupado y volvería a ofrecer horarios ya vendidos.
+      throw new SheetsUnavailableError(error);
+    }
+  })();
+
+  // Si falla, no dejar cacheada una promesa rota para siempre.
+  clienteAuth.catch(error => {
+    console.error('Error cargando credenciales de Google:', error?.message || error);
+    clienteAuth = null;
+  });
+
+  return clienteAuth;
 };
 
 const SPREADSHEET_ID = '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ';
@@ -175,6 +208,7 @@ const appendToSheet = async (data) => {
 
     const result = await addRowSheet(authClient, data);
 
+    limpiarCacheTurnos();   // la hoja cambio: lo cacheado quedo viejo
     console.log('Guardado correctamente:', result);
 
     return result;
@@ -185,7 +219,30 @@ const appendToSheet = async (data) => {
 };
 
 // OBTENER TODAS LAS FILAS
-async function getSheetData(auth) {
+// Caché corta de la hoja de turnos.
+//
+// Elegir barbero dispara 7 lecturas completas seguidas, una por cada fecha
+// que se le ofrece al cliente. Con esto se convierten en una sola.
+//
+// ⚠️ Las validaciones finales piden datos FRESCOS a propósito. Si leyeran
+// del caché, dos clientes podrían tomar el mismo turno dentro de la ventana
+// y el caché habría empeorado justo lo que venimos a evitar.
+// El caché es solo para MOSTRAR, nunca para decidir.
+const CACHE_TURNOS_MS = 20 * 1000;
+
+let cacheTurnos = { filas: null, momento: 0 };
+
+export const limpiarCacheTurnos = () => {
+  cacheTurnos = { filas: null, momento: 0 };
+};
+
+async function getSheetData(auth, { fresco = false } = {}) {
+  const vigente = !fresco
+    && cacheTurnos.filas
+    && (Date.now() - cacheTurnos.momento) < CACHE_TURNOS_MS;
+
+  if (vigente) return cacheTurnos.filas;
+
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -193,10 +250,18 @@ async function getSheetData(auth) {
       auth,
     });
 
-    return response.data.values || [];
+    const filas = response.data.values || [];
+    cacheTurnos = { filas, momento: Date.now() };
+
+    return filas;
   } catch (error) {
-    console.error('Error leyendo sheet:', error);
-    return [];
+    console.error('Error leyendo sheet:', error?.message || error);
+
+    // Antes aquí se devolvía []. Eso hacía que el bot concluyera que no hay
+    // NINGÚN turno ocupado, y ofreciera horarios ya vendidos. Fallaba en
+    // silencio y en la peor dirección. Ahora falla de frente, para que quien
+    // llama pueda decirle la verdad al cliente.
+    throw new SheetsUnavailableError(error);
   }
 }
 
@@ -204,7 +269,7 @@ async function getSheetData(auth) {
 export const isSlotAvailable = async (barber, date, time) => {
   try {
     const authClient = await getAuthClient();
-    const rows = await getSheetData(authClient);
+    const rows = await getSheetData(authClient, { fresco: true });
 
     const exists = rows.some(row => {
       const savedDate = (row[0] || '').toLowerCase().trim();
@@ -290,6 +355,7 @@ export const getAvailableSlots = async (barber, date) => {
     return available;
 
   } catch (error) {
+    if (error instanceof SheetsUnavailableError) throw error;
     console.error('Error obteniendo horarios disponibles:', error);
     return [];
   }
@@ -299,7 +365,7 @@ export const getAvailableSlots = async (barber, date) => {
 export const checkAvailability = async (barber, date, time) => {
   try {
     const authClient = await getAuthClient();
-    const rows = await getSheetData(authClient);
+    const rows = await getSheetData(authClient, { fresco: true });
 
     const ocupado = rows.some(row => {
       const existingDate = (row[0] || '').toLowerCase().trim();
@@ -317,6 +383,7 @@ export const checkAvailability = async (barber, date, time) => {
 
     return !ocupado;
   } catch (error) {
+    if (error instanceof SheetsUnavailableError) throw error;
     console.error('Error en checkAvailability:', error);
     return false;
   }
@@ -426,6 +493,7 @@ export const getDailyScheduleByBarber = async (barber, date) => {
     );
 
   } catch (error) {
+    if (error instanceof SheetsUnavailableError) throw error;
     console.error('Error obteniendo agenda diaria del barbero:', error);
     return [];
   }
@@ -487,6 +555,7 @@ export const getUpcomingAppointmentsByPhone = async (phone) => {
       createdAt: appointment.row[7] || '',
     }));
   } catch (error) {
+    if (error instanceof SheetsUnavailableError) throw error;
     console.error('Error en getUpcomingAppointmentsByPhone:', error);
     return [];
   }
@@ -508,6 +577,7 @@ export const updateAppointmentStatus = async (rowNumber, newStatus) => {
       auth: authClient,
     });
 
+    limpiarCacheTurnos();   // la hoja cambio: lo cacheado quedo viejo
     console.log('Respuesta update status:', response.data);
 
     return response.data;
@@ -520,7 +590,7 @@ export const updateAppointmentStatus = async (rowNumber, newStatus) => {
 export const countUserAppointmentsSameDay = async (phone, date) => {
   try {
     const authClient = await getAuthClient();
-    const rows = await getSheetData(authClient);
+    const rows = await getSheetData(authClient, { fresco: true });
 
     const count = rows.filter(row => {
       const savedPhone = (row[4] || '').trim();
@@ -536,6 +606,7 @@ export const countUserAppointmentsSameDay = async (phone, date) => {
 
     return count;
   } catch (error) {
+    if (error instanceof SheetsUnavailableError) throw error;
     console.error('Error contando citas del usuario en el mismo día:', error);
     return 0;
   }
