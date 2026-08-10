@@ -7,7 +7,7 @@
 //
 // No es el mismo BUSINESS_PHONE del .env: ese es el identificador
 // interno de Meta (16 dígitos), no sirve para un enlace wa.me.
-const NUMERO_WHATSAPP = '573146926477';
+const NUMERO_WHATSAPP = '573216981441';
 
 const SALUDO = 'Hola, quiero agendar un turno';
 

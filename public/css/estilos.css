@@ -128,12 +128,19 @@ img { max-width: 100%; display: block; }
   max-width: 620px;
 }
 
+/* El logo viene como banner 16:9 con el fondo de cuero incluido.
+   Como la portada usa ese mismo cuero, se le difuminan los bordes y la
+   imagen se funde con la página en vez de verse como un recuadro pegado. */
 .logo {
-  width: min(340px, 74vw);
+  width: min(560px, 92vw);
   height: auto;
-  margin-bottom: 2rem;
-  filter: drop-shadow(0 18px 45px rgba(0, 0, 0, 0.65));
+  margin-bottom: 1.25rem;
   animation: aparecer 900ms var(--curva) both;
+
+  -webkit-mask-image:
+    radial-gradient(ellipse 62% 58% at 50% 50%, #000 42%, transparent 78%);
+  mask-image:
+    radial-gradient(ellipse 62% 58% at 50% 50%, #000 42%, transparent 78%);
 }
 
 /* Si el archivo del logo todavía no existe, se muestra el nombre */

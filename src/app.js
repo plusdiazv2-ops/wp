@@ -19,8 +19,10 @@ app.use('/', webhookRoutes);
 
 // Web de presentación de la barbería.
 // Son archivos estáticos: no ejecutan nada y no pueden tumbar el bot.
+// Caché corto a propósito: mientras la web esté cambiando, una hora de caché
+// significa desplegar y no ver el cambio. Cuando se estabilice se puede subir.
 app.use(express.static(path.join(process.cwd(), 'public'), {
-  maxAge: '1h',
+  maxAge: '5m',
 }));
 
 // Señal de vida, para revisar que el proceso está arriba sin abrir la web.
