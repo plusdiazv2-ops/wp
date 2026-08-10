@@ -1,0 +1,484 @@
+/* ═══════════════════════════════════════════════════════════
+   Exclusive Barber — hoja de estilos
+   Los colores salen del logo: cuero casi negro, dorado y crema.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --negro:        #0d0b0a;
+  --cuero:        #16120f;
+  --cuero-claro:  #1f1a16;
+  --cuero-alto:   #241d18;
+
+  --dorado:       #c9a86a;
+  --dorado-vivo:  #e0c188;
+  --crema:        #f3e6c9;
+  --blanco:       #ffffff;
+
+  --texto:        #e8e0d2;
+  --texto-suave:  #9b9186;
+
+  --whatsapp:     #25d366;
+
+  --display: 'Anton', system-ui, sans-serif;
+  --cuerpo:  'Inter', system-ui, sans-serif;
+
+  --curva: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--negro);
+  color: var(--texto);
+  font-family: var(--cuerpo);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img { max-width: 100%; display: block; }
+
+/* ── Grano sobre toda la página ───────────────────────────── */
+.grano {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.4;
+  background-size: 200px 200px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* ═══════════════════ PORTADA ═══════════════════ */
+.portada {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 1.25rem 6rem;
+  overflow: hidden;
+
+  /* Cuero: capas de degradados, sin imagen externa */
+  background:
+    radial-gradient(120% 90% at 50% 0%, #2a221c 0%, transparent 55%),
+    radial-gradient(90% 70% at 80% 100%, #1d1712 0%, transparent 60%),
+    linear-gradient(160deg, #16120f 0%, #0d0b0a 55%, #131010 100%);
+}
+
+/* Halo de luz cálida, como el del logo */
+.portada__brillo {
+  position: absolute;
+  top: -30%;
+  right: -10%;
+  width: 70vw;
+  height: 70vw;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(201,168,106,0.14) 0%, transparent 65%);
+}
+
+.portada__etiqueta {
+  position: absolute;
+  top: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  z-index: 6;
+
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dorado);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+/* Texto gigante de fondo */
+.fantasma {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+
+  font-family: var(--display);
+  font-size: clamp(78px, 20vw, 340px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  color: var(--blanco);
+  opacity: 0.035;
+}
+
+.portada__centro {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 620px;
+}
+
+.logo {
+  width: min(340px, 74vw);
+  height: auto;
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 18px 45px rgba(0, 0, 0, 0.65));
+  animation: aparecer 900ms var(--curva) both;
+}
+
+/* Si el archivo del logo todavía no existe, se muestra el nombre */
+.logo--falta {
+  width: min(340px, 74vw);
+  height: 150px;
+  position: relative;
+  border: 1px dashed rgba(201, 168, 106, 0.45);
+  border-radius: 10px;
+}
+.logo--falta::after {
+  content: 'EXCLUSIVE BARBER';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  color: var(--dorado);
+}
+
+.portada__lema {
+  margin: 0 0 2.25rem;
+  font-size: clamp(1rem, 2.4vw, 1.2rem);
+  color: var(--texto-suave);
+  max-width: 30rem;
+  animation: aparecer 900ms 120ms var(--curva) both;
+}
+
+.portada__nota {
+  margin: 1rem 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+  opacity: 0.8;
+}
+
+/* Flecha de bajar */
+.portada__bajar {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 26px;
+  height: 42px;
+  border: 1.5px solid rgba(201, 168, 106, 0.5);
+  border-radius: 14px;
+}
+.portada__bajar span {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 3px;
+  height: 7px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--dorado);
+  animation: bajar 1.7s var(--curva) infinite;
+}
+
+@keyframes bajar {
+  0%   { opacity: 0; transform: translateY(0); }
+  35%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(16px); }
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════ BOTONES ═══════════════════ */
+.boton-principal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1.05rem 2.4rem;
+  border-radius: 999px;
+
+  background: linear-gradient(135deg, var(--dorado-vivo), var(--dorado));
+  color: #1a1410;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+
+  box-shadow: 0 10px 32px rgba(201, 168, 106, 0.26);
+  transition: transform 180ms var(--curva), box-shadow 180ms var(--curva);
+  animation: aparecer 900ms 240ms var(--curva) both;
+}
+
+.boton-principal:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(201, 168, 106, 0.36);
+}
+
+.boton-principal:active { transform: translateY(0) scale(0.99); }
+
+.boton-principal__icono {
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.boton-secundario {
+  display: inline-block;
+  padding: 0.75rem 1.6rem;
+  border: 1px solid rgba(201, 168, 106, 0.55);
+  border-radius: 999px;
+
+  color: var(--dorado);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 180ms var(--curva), color 180ms var(--curva);
+}
+
+.boton-secundario:hover {
+  background: var(--dorado);
+  color: #1a1410;
+}
+
+/* ═══════════════════ SECCIONES ═══════════════════ */
+.seccion {
+  position: relative;
+  padding: 6rem 1.25rem;
+  text-align: center;
+}
+
+.seccion--alterna { background: var(--cuero); }
+
+.seccion--cierre {
+  background:
+    radial-gradient(90% 120% at 50% 0%, #221b16 0%, transparent 60%),
+    var(--negro);
+  padding-bottom: 7rem;
+}
+
+.seccion__etiqueta {
+  margin: 0 0 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dorado);
+}
+
+.seccion__titulo {
+  margin: 0 auto 3rem;
+  max-width: 22ch;
+
+  font-family: var(--display);
+  font-size: clamp(1.9rem, 5.5vw, 3.1rem);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  color: var(--crema);
+}
+
+.seccion__titulo--grande {
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  margin-bottom: 1.25rem;
+}
+
+.seccion__texto {
+  margin: 0 auto 2.5rem;
+  max-width: 34rem;
+  color: var(--texto-suave);
+}
+
+/* ── Barberos ─────────────────────────────────────────────── */
+.barberos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1.5rem;
+  max-width: 840px;
+  margin: 0 auto;
+}
+
+.barbero {
+  padding: 2.25rem 1.25rem;
+  border: 1px solid rgba(201, 168, 106, 0.16);
+  border-radius: 14px;
+  background: linear-gradient(170deg, rgba(36,29,24,0.85), rgba(19,16,13,0.85));
+  transition: border-color 250ms var(--curva), transform 250ms var(--curva);
+}
+
+.barbero:hover {
+  border-color: rgba(201, 168, 106, 0.45);
+  transform: translateY(-4px);
+}
+
+/* Marcador con la inicial, hasta que haya fotos */
+.barbero__foto {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 1.25rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(201, 168, 106, 0.35);
+  background: radial-gradient(circle at 30% 25%, #2c241d, #15110e);
+}
+
+.barbero__foto::after {
+  content: attr(data-inicial);
+  font-family: var(--display);
+  font-size: 2rem;
+  color: var(--dorado);
+}
+
+.barbero__nombre {
+  margin: 0 0 0.2rem;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--crema);
+}
+
+.barbero__rol {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.barberos__nota {
+  margin: 2.5rem 0 0;
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+}
+
+/* ── Mapa ─────────────────────────────────────────────────── */
+.tarjeta-mapa {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: left;
+
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 1.75rem;
+  border: 1px solid rgba(201, 168, 106, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(170deg, rgba(36,29,24,0.7), rgba(19,16,13,0.7));
+}
+
+.tarjeta-mapa__pin {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(201, 168, 106, 0.12);
+}
+.tarjeta-mapa__pin svg { width: 26px; height: 26px; fill: var(--dorado); }
+
+.tarjeta-mapa__texto { flex: 1 1 200px; }
+
+.tarjeta-mapa__direccion {
+  margin: 0 0 0.15rem;
+  font-weight: 600;
+  color: var(--crema);
+}
+
+.tarjeta-mapa__ciudad {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+}
+
+/* ═══════════════════ PIE ═══════════════════ */
+.pie {
+  padding: 3rem 1.25rem 2.5rem;
+  text-align: center;
+  border-top: 1px solid rgba(201, 168, 106, 0.12);
+  background: var(--cuero);
+}
+
+.pie__marca {
+  margin: 0 0 0.35rem;
+  font-family: var(--display);
+  font-size: 1.15rem;
+  letter-spacing: 0.14em;
+  color: var(--dorado);
+}
+
+.pie__lugar {
+  margin: 0 0 1.5rem;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+}
+
+.pie__legal {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  font-size: 0.82rem;
+}
+
+.pie__legal a {
+  color: var(--texto-suave);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 180ms var(--curva), border-color 180ms var(--curva);
+}
+
+.pie__legal a:hover {
+  color: var(--dorado);
+  border-bottom-color: rgba(201, 168, 106, 0.5);
+}
+
+.pie__firma {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+  opacity: 0.65;
+}
+
+/* ═══════════════════ CELULAR ═══════════════════ */
+@media (max-width: 640px) {
+  .seccion { padding: 4.5rem 1.25rem; }
+  .portada { padding: 4.5rem 1.25rem 5rem; }
+  .tarjeta-mapa { text-align: center; }
+  .tarjeta-mapa__texto { flex-basis: 100%; }
+}
+
+/* Quien pidió menos movimiento, menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
