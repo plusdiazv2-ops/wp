@@ -94,7 +94,10 @@ Reglas por barbero (resumen — la fuente de verdad es el código):
 - **Julian:** no trabaja domingos; martes hasta 4:40pm; resto hasta 5:20pm.
   El miércoles trabaja jornada corta — **hasta la 1:00pm**, no "solo mañana":
   la lista incluye 12:20pm y 1:00pm.
-- **Ladino:** no trabaja domingos; mismo horario todos los días hábiles, hasta 6:20pm
+- **Ladino:** no trabaja domingos. Desde el **10 de agosto de 2026 atiende solo de
+  noche**: de 6:00pm a 8:30pm, cada 30 min (el último termina a las 9pm). Antes hacía
+  jornada completa de 10:30am a 6:20pm cada 40 min — puede haber turnos históricos en
+  ese horario viejo.
 
 ## Flujo del cliente
 

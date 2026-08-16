@@ -105,14 +105,27 @@ describe('horarios por defecto', () => {
     assert.equal(turnoAMinutos(lunes[i + 1]) - turnoAMinutos(lunes[i]), 50);
   });
 
-  test('Ladino: mismo horario todos los días hábiles, hasta 6:20pm', () => {
+  test('Ladino: solo de noche, de 6pm a 9pm, cada 30 min', () => {
     const lunes = turnosPorDefecto('ladino', LUNES);
 
     for (const dia of [MARTES, MIERCOLES, SABADO]) {
       assert.deepEqual(turnosPorDefecto('ladino', dia), lunes,
         `Ladino debería tener el mismo horario el ${NOMBRES_DIAS[dia]}`);
     }
-    assert.equal(lunes.at(-1), '6:20pm');
+
+    assert.equal(lunes.length, 6);
+    assert.equal(lunes[0], '6:00pm', 'empieza a las 6');
+    assert.equal(lunes.at(-1), '8:30pm', 'el último empieza 8:30pm y termina a las 9');
+    assert.equal(turnoAMinutos(lunes.at(-1)) + 30, 21 * 60, 'cierra a las 9pm en punto');
+
+    // Nada antes del mediodía: ya no hace jornada de día.
+    assert.ok(lunes.every(t => turnoAMinutos(t) >= 18 * 60), 'todos sus turnos son de 6pm en adelante');
+
+    // Los 30 minutos, parejos.
+    for (let i = 0; i < lunes.length - 1; i++) {
+      assert.equal(turnoAMinutos(lunes[i + 1]) - turnoAMinutos(lunes[i]), 30,
+        `de ${lunes[i]} a ${lunes[i + 1]} deberían ser 30 min`);
+    }
   });
 
   test('un barbero que no existe devuelve lista vacía, no explota', () => {

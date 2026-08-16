@@ -36,10 +36,12 @@ const JULIAN_MANANA = [
 const JULIAN_HASTA_440 = [...JULIAN_MANANA, "2:30pm", "3:20pm", "4:00pm", "4:40pm"];
 const JULIAN_HASTA_520 = [...JULIAN_HASTA_440, "5:20pm"];
 
-// ── Ladino ─ cada 40 min ──────────────────────────────────────────────
+// ── Ladino ─ cada 30 min, SOLO DE NOCHE ───────────────────────────────
+// Desde el 10 de agosto de 2026 atiende únicamente de 6pm a 9pm. Antes hacía
+// jornada completa de 10:30am a 6:20pm, cada 40 min.
+// El último turno empieza 8:30pm y termina a las 9pm.
 const LADINO = [
-  "10:30am", "11:10am", "11:50am", "12:30pm", "1:10pm",
-  "3:00pm", "3:40pm", "4:20pm", "5:00pm", "5:40pm", "6:20pm"
+  "6:00pm", "6:30pm", "7:00pm", "7:30pm", "8:00pm", "8:30pm"
 ];
 
 /**
