@@ -4,6 +4,7 @@ import appendToSheet, {
   getAvailableSlots,
   getUpcomingAppointmentsByPhone,
   updateAppointmentStatus,
+  cancelarTurnoDeCliente,
   countUserAppointmentsSameDay,
   getAppointmentsByBarberAndDate,
   getDailyScheduleByBarber,
@@ -1267,19 +1268,20 @@ Si necesitas cancelar tu turno:
       if (choice.type === 'option' && choice.index === 0) {
         const appt = state.selectedAppointment;
 
-        const result = await updateAppointmentStatus(
-          appt.rowNumber,
-          'Cancelado'
-        );
+        // Comprueba que la fila siga siendo la suya antes de escribir. Si
+        // alguien movió filas en la hoja mientras el cliente decidía, el
+        // número guardado apuntaría al turno de otra persona.
+        const result = await cancelarTurnoDeCliente(appt);
 
         delete this.cancelState[to];
         this.resetError(to);
 
-        if (!result) {
-          await whatsappService.sendMessage(
-            to,
-            '❌ No pude cancelar el turno. Intenta de nuevo.'
-          );
+        if (!result.ok) {
+          const mensaje = result.motivo === 'no_esta'
+            ? '⚠️ Ese turno ya no está activo. Puede que ya lo hubieran cancelado.\n\nEscribe *menu* para ver tus turnos.'
+            : '❌ No pude cancelar el turno. Intenta de nuevo.';
+
+          await whatsappService.sendMessage(to, mensaje);
           return;
         }
 

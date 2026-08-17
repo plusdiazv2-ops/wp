@@ -783,6 +783,82 @@ export const desbloquearHorario = async (barbero, fecha, hora) => {
   return { ok: true, fila: encontrado.numeroFila };
 };
 
+
+/**
+ * ¿Esta fila de la hoja es el turno que el cliente quiere cancelar?
+ *
+ * Se compara por lo que identifica al turno de verdad —teléfono, fecha, hora
+ * y barbero— y no por su posición. La posición cambia sola cuando alguien
+ * inserta o borra filas a mano en la hoja.
+ */
+export function filaCoincideConTurno(fila, turno) {
+  if (!fila || !turno) return false;
+
+  // Sin teléfono no se compara nada: una fila de bloqueo tampoco lo tiene, y
+  // coincidirían entre sí. Un turno de cliente SIEMPRE trae teléfono, así que
+  // esto solo tapa el caso de llamar a la función con datos incompletos.
+  if (!String(turno.phone || '').trim()) return false;
+
+  return igual(fila[0], turno.date)
+    && igual(fila[2], turno.time)
+    && igual(fila[4], turno.phone)
+    && igual(fila[5], turno.barber)
+    && igual(fila[6], 'confirmado');
+}
+
+/**
+ * Cancela el turno de un cliente, comprobando ANTES que la fila sea la suya.
+ *
+ * El problema que resuelve: entre que se le muestra la lista de sus turnos y
+ * confirma la cancelación pueden pasar minutos. Si en ese rato alguien
+ * inserta o borra una fila a mano en la hoja —que es justo como se hacían
+ * los bloqueos antes— el número de fila guardado apunta a OTRO turno, y se
+ * le cancelaba la cita a un cliente que no había pedido nada.
+ *
+ * → { ok, motivo, fila }
+ */
+export const cancelarTurnoDeCliente = async (turno) => {
+  if (!turno?.rowNumber) return { ok: false, motivo: 'sin_datos' };
+
+  const authClient = await getAuthClient();
+
+  // 1. Camino rápido: mirar solo la fila que se guardó.
+  let numeroFila = turno.rowNumber;
+
+  const asomo = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `'barber'!A${numeroFila}:G${numeroFila}`,
+    auth: authClient,
+  });
+
+  if (!filaCoincideConTurno(asomo.data.values?.[0], turno)) {
+    // 2. No era. Se busca el turno de verdad en toda la hoja.
+    console.log(
+      `⚠️ La fila ${numeroFila} ya no es el turno de ${turno.phone}. Se busca de nuevo.`
+    );
+
+    const filas = await getSheetData(authClient, { fresco: true });
+
+    const encontrado = filas
+      .slice(1)
+      .map((fila, indice) => ({ fila, numeroFila: indice + 2 }))
+      .find(({ fila }) => filaCoincideConTurno(fila, turno));
+
+    if (!encontrado) {
+      // O ya estaba cancelado, o la fila desapareció.
+      return { ok: false, motivo: 'no_esta' };
+    }
+
+    numeroFila = encontrado.numeroFila;
+    console.log(`   → era la fila ${numeroFila}.`);
+  }
+
+  const respuesta = await updateAppointmentStatus(numeroFila, 'Cancelado');
+  if (!respuesta) return { ok: false, motivo: 'no_se_pudo_guardar' };
+
+  return { ok: true, fila: numeroFila };
+};
+
 export const getUpcomingAppointmentsByPhone = async (phone) => {
     try {
     const authClient = await getAuthClient();
