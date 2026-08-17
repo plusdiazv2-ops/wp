@@ -78,6 +78,15 @@ function pintarTabla({ horas, dias }) {
 
       if (!turno) return '<td class="celda celda--cerrado">—</td>';
 
+      const datos = `data-fecha="${dia.fecha}" data-hora="${hora}"`;
+
+      if (turno.bloqueado) {
+        return `<td class="celda celda--bloqueado" ${datos} data-accion="desbloquear"
+                    title="Bloqueado. Toca para liberarlo.">
+          <span class="celda__marca">Bloqueado</span>
+        </td>`;
+      }
+
       if (turno.estado === 'ocupado') {
         return `<td class="celda celda--ocupado" title="${turno.nombre} · ${turno.telefono}">
           <span class="celda__nombre">${turno.nombre || 'Ocupado'}</span>
@@ -85,7 +94,8 @@ function pintarTabla({ horas, dias }) {
         </td>`;
       }
 
-      return '<td class="celda celda--libre"></td>';
+      return `<td class="celda celda--libre" ${datos} data-accion="bloquear"
+                  title="Libre. Toca para bloquearlo."></td>`;
     }).join('');
 
     return `<tr><th class="hora">${hora}</th>${celdas}</tr>`;
@@ -95,6 +105,53 @@ function pintarTabla({ horas, dias }) {
     <thead><tr><th class="hora"></th>${encabezado}</tr></thead>
     <tbody>${filas}</tbody>`;
 }
+
+// Bloquear y desbloquear tocando la casilla.
+tabla.addEventListener('click', async (evento) => {
+  const celda = evento.target.closest('[data-accion]');
+  if (!celda || celda.dataset.ocupada) return;
+
+  const { accion, fecha, hora } = celda.dataset;
+
+  const pregunta = accion === 'bloquear'
+    ? `¿Bloquear ${hora} del ${fecha}?
+
+Nadie va a poder agendar en ese turno.`
+    : `¿Liberar ${hora} del ${fecha}?
+
+Vuelve a quedar disponible para los clientes.`;
+
+  if (!confirm(pregunta)) return;
+
+  celda.dataset.ocupada = '1';          // evita el doble clic
+  celda.classList.add('celda--guardando');
+
+  try {
+    const respuesta = await fetch(`/panel/api/${accion}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ barbero: estado.barbero, fecha, hora }),
+    });
+
+    if (respuesta.status === 401) { location.href = '/panel/'; return; }
+
+    const datos = await respuesta.json();
+
+    if (!datos.ok) {
+      mostrarAviso(datos.error || 'No se pudo guardar.');
+      celda.classList.remove('celda--guardando');
+      delete celda.dataset.ocupada;
+      return;
+    }
+
+    mostrarAviso('');
+    await cargar();
+  } catch {
+    mostrarAviso('No se pudo conectar. Revisa tu internet.');
+    celda.classList.remove('celda--guardando');
+    delete celda.dataset.ocupada;
+  }
+});
 
 $('barbero').addEventListener('change', e => {
   estado.barbero = e.target.value;

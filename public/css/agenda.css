@@ -232,3 +232,36 @@ thead th.es-pasado { opacity: 0.5; }
   .agenda__semana span { min-width: auto; font-size: 0.88rem; }
   .agenda { padding: 1rem 0.75rem 3rem; }
 }
+
+/* ── Bloqueos ──────────────────────────────────────────── */
+.celda--libre,
+.celda--bloqueado { cursor: pointer; }
+
+.celda--libre:hover {
+  background: rgba(201, 168, 106, 0.18);
+  outline: 1px solid rgba(201, 168, 106, 0.5);
+  outline-offset: -1px;
+}
+.celda--libre:hover::after { content: '🔒'; font-size: 0.9rem; }
+
+.celda--bloqueado {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(120, 110, 95, 0.16) 0 6px,
+    rgba(120, 110, 95, 0.06) 6px 12px
+  );
+}
+.celda--bloqueado:hover { outline: 1px solid rgba(201, 168, 106, 0.5); outline-offset: -1px; }
+
+.celda__marca {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9b9186;
+}
+
+.celda--guardando { opacity: 0.45; pointer-events: none; }
+
+.punto--bloqueado {
+  background: repeating-linear-gradient(45deg, #786e5f 0 3px, #3a342c 3px 6px);
+}

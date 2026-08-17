@@ -9,9 +9,12 @@ export function requiereSesion(req, res, next) {
   const sesion = leerSesion(leerCookie(req, NOMBRE_COOKIE));
 
   if (!sesion) {
-    // A las llamadas del navegador se les responde JSON; a la navegación
-    // normal se la manda a la pantalla de entrar.
-    if (req.get('Accept')?.includes('application/json')) {
+    // Las rutas de datos siempre responden JSON, aunque quien llame no lo
+    // pida: un 302 a una API es confuso y esconde el motivo real.
+    const esApi = req.path.includes('/api/')
+      || req.get('Accept')?.includes('application/json');
+
+    if (esApi) {
       return res.status(401).json({ ok: false, error: 'sin_sesion' });
     }
 

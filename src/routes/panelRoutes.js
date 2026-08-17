@@ -2,8 +2,14 @@ import express from 'express';
 import path from 'node:path';
 
 import { verificarCodigo, puedeEntrar, normalizarTelefono } from '../services/accesoPanel.js';
-import { obtenerAdminsWeb } from '../services/googleSheetsService.js';
+import {
+  obtenerAdminsWeb,
+  obtenerTurnos,
+  bloquearHorario,
+  desbloquearHorario,
+} from '../services/googleSheetsService.js';
 import { requiereSesion } from '../middlewares/requiereSesion.js';
+import { esTurnoValido } from '../config/barbers.js';
 import { SheetsUnavailableError } from '../services/googleSheetsService.js';
 import messageHandler from '../services/messageHandler.js';
 import {
@@ -187,6 +193,89 @@ router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
     });
   }
 });
+
+/**
+ * Comprueba lo que llega antes de escribir en la hoja.
+ * Devuelve { barbero, fecha, hora } o { error }.
+ */
+async function validarCasilla(cuerpo, barberos) {
+  const pedido = String(cuerpo?.barbero || '').toLowerCase().trim();
+  const barbero = barberos.find(b => b.toLowerCase() === pedido);
+  const fecha = String(cuerpo?.fecha || '').trim();
+  const hora = String(cuerpo?.hora || '').trim().toLowerCase();
+
+  if (!barbero) return { error: 'Ese barbero no existe.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'Fecha inválida.' };
+  if (!esTurnoValido(hora)) return { error: 'Hora inválida.' };
+
+  // Que ese turno exista de verdad en la jornada del barbero ese día. Sin
+  // esto se podrían crear filas de bloqueo en horas que no existen.
+  const dia = new Date(`${fecha}T00:00:00`).getDay();
+  const delDia = await obtenerTurnos(barbero, dia);
+
+  if (!delDia.some(t => t.toLowerCase() === hora)) {
+    return { error: `${barbero} no atiende a esa hora ese día.` };
+  }
+
+  return { barbero, fecha, hora };
+}
+
+const MOTIVOS = {
+  ocupado: 'Ese turno ya lo tomó un cliente. Recarga la agenda.',
+  no_existe: 'Ese bloqueo ya no está. Recarga la agenda.',
+  la_hoja_cambio: 'La hoja cambió mientras tanto. Recarga y vuelve a intentar.',
+  no_se_pudo_guardar: 'No se pudo guardar en la hoja. Intenta de nuevo.',
+};
+
+/** Marcar un horario como no disponible. */
+router.post('/panel/api/bloquear', requiereSesion, async (req, res) => {
+  const datos = await validarCasilla(req.body, messageHandler.barbers);
+  if (datos.error) return res.status(400).json({ ok: false, error: datos.error });
+
+  try {
+    const resultado = await bloquearHorario(datos.barbero, datos.fecha, datos.hora);
+
+    if (!resultado.ok) {
+      return res.status(409).json({ ok: false, error: MOTIVOS[resultado.motivo] || 'No se pudo bloquear.' });
+    }
+
+    console.log(`🔒 ${req.admin.telefono} bloqueó ${datos.barbero} ${datos.fecha} ${datos.hora}`);
+    return res.json({ ok: true });
+  } catch (error) {
+    return responderFallo(res, error, 'bloquear');
+  }
+});
+
+/** Quitar un bloqueo. */
+router.post('/panel/api/desbloquear', requiereSesion, async (req, res) => {
+  const datos = await validarCasilla(req.body, messageHandler.barbers);
+  if (datos.error) return res.status(400).json({ ok: false, error: datos.error });
+
+  try {
+    const resultado = await desbloquearHorario(datos.barbero, datos.fecha, datos.hora);
+
+    if (!resultado.ok) {
+      return res.status(409).json({ ok: false, error: MOTIVOS[resultado.motivo] || 'No se pudo desbloquear.' });
+    }
+
+    console.log(`🔓 ${req.admin.telefono} liberó ${datos.barbero} ${datos.fecha} ${datos.hora} (fila ${resultado.fila})`);
+    return res.json({ ok: true });
+  } catch (error) {
+    return responderFallo(res, error, 'desbloquear');
+  }
+});
+
+function responderFallo(res, error, accion) {
+  const caido = error instanceof SheetsUnavailableError;
+  console.error(`Panel ${accion}:`, error?.message || error);
+
+  return res.status(caido ? 503 : 500).json({
+    ok: false,
+    error: caido
+      ? 'No puedo escribir en la agenda ahora mismo. Intenta en un minuto.'
+      : 'Algo salió mal.',
+  });
+}
 
 /** La pantalla de la agenda. */
 router.get('/panel/agenda', requiereSesion, (req, res) => {

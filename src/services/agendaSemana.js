@@ -1,5 +1,6 @@
 import { getDailyScheduleByBarber } from './googleSheetsService.js';
 import { turnoAMinutos, NOMBRES_DIAS } from '../config/barbers.js';
+import { NOMBRE_BLOQUEO } from './googleSheetsService.js';
 
 /**
  * AGENDA DE LA SEMANA — para el panel web
@@ -104,8 +105,15 @@ export async function armarSemana(barbero, lunesISO, hoyISO = hoyEnBogota()) {
     for (const turno of agenda) {
       horas.add(turno.time);
 
+      const esBloqueo = String(turno.name || '')
+        .toLowerCase()
+        .startsWith(NOMBRE_BLOQUEO.toLowerCase());
+
       dia.turnos[turno.time] = {
         estado: turno.status,                        // 'ocupado' | 'libre'
+        // Un bloqueo es un turno ocupado con nombre "Descanso". Se marca
+        // aparte para que el panel lo pinte distinto y deje liberarlo.
+        bloqueado: turno.status === 'ocupado' && esBloqueo,
         nombre: turno.name || '',
         telefono: (turno.phone || '').replace(/^57/, ''),
       };

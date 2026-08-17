@@ -6,6 +6,7 @@ import {
   turnoAMinutos,
   turnosPorDefecto,
 } from '../config/barbers.js';
+import { fechaVisible, fechaHoraTurno } from '../config/fechas.js';
 
 const sheets = google.sheets('v4');
 
@@ -554,6 +555,120 @@ export const getDailyScheduleByBarber = async (barber, date) => {
     console.error('Error obteniendo agenda diaria del barbero:', error);
     return [];
   }
+};
+
+
+// ============================================================
+// BLOQUEOS DE HORARIO — desde el panel web
+// ============================================================
+// Un bloqueo es una fila normal con nombre "Descanso". Para el bot es un
+// turno ocupado más, así que aparece solo en la lista del cliente y en el
+// panel de WhatsApp del barbero, sin lógica nueva en ninguna parte.
+//
+// Es lo mismo que se hacía a mano en la hoja, pero sin equivocarse al
+// escribir la fecha o la hora.
+
+export const NOMBRE_BLOQUEO = 'Descanso';
+
+const igual = (a, b) => String(a || '').toLowerCase().trim() === String(b || '').toLowerCase().trim();
+
+const esFilaDeBloqueo = (fila) =>
+  String(fila?.[3] || '').toLowerCase().trim().startsWith(NOMBRE_BLOQUEO.toLowerCase());
+
+/**
+ * Marca un horario como no disponible.
+ *
+ * Antes de escribir comprueba con datos FRESCOS que el turno siga libre: un
+ * cliente pudo haberlo tomado entre que se pintó la agenda y el clic.
+ */
+export const bloquearHorario = async (barbero, fecha, hora) => {
+  const libre = await checkAvailability(barbero, fecha, hora);
+
+  if (!libre) {
+    return { ok: false, motivo: 'ocupado' };
+  }
+
+  const fila = [
+    fecha,                       // A  fecha
+    fechaVisible(fecha),         // B  día visible
+    hora,                        // C  hora, tal cual
+    NOMBRE_BLOQUEO,              // D  nombre
+    '',                          // E  teléfono: no hay cliente
+    barbero,                     // F  barbero
+    'Confirmado',                // G  ocupa el turno
+    new Date().toISOString(),    // H  cuándo se creó
+    fechaHoraTurno(fecha, hora), // I  para el recordatorio
+    'Sí',                        // J  ⚠️ ya "recordado", ver abajo
+  ];
+
+  // ⚠️ La J va en "Sí" a propósito. Si fuera "No", el cron de recordatorios
+  // recogería esta fila e intentaría mandarle un WhatsApp a un teléfono
+  // vacío, cada 5 minutos, para siempre.
+
+  const authClient = await getAuthClient();
+  const resultado = await addRowSheet(authClient, fila);
+
+  if (!resultado) return { ok: false, motivo: 'no_se_pudo_guardar' };
+
+  limpiarCacheTurnos();
+
+  return { ok: true };
+};
+
+/**
+ * Quita un bloqueo: la fila pasa a "Cancelado".
+ *
+ * NUNCA se borra la fila. Borrar corre los números de todas las de abajo, y
+ * ese es justo el riesgo del punto 6 del backlog.
+ *
+ * Antes de escribir se relee ESA fila y se comprueba que sigue siendo la que
+ * se quería tocar. Si alguien insertó o borró filas a mano mientras tanto,
+ * se aborta en vez de cancelarle el turno a otro cliente.
+ */
+export const desbloquearHorario = async (barbero, fecha, hora) => {
+  const authClient = await getAuthClient();
+  const filas = await getSheetData(authClient, { fresco: true });
+
+  const encontrado = filas
+    .slice(1)
+    .map((fila, indice) => ({ fila, numeroFila: indice + 2 }))
+    .find(({ fila }) =>
+      igual(fila[0], fecha) &&
+      igual(fila[2], hora) &&
+      igual(fila[5], barbero) &&
+      igual(fila[6], 'confirmado') &&
+      esFilaDeBloqueo(fila)
+    );
+
+  if (!encontrado) return { ok: false, motivo: 'no_existe' };
+
+  // Releer justo esa fila antes de escribir.
+  const comprobacion = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `'barber'!A${encontrado.numeroFila}:G${encontrado.numeroFila}`,
+    auth: authClient,
+  });
+
+  const ahora = comprobacion.data.values?.[0] || [];
+
+  const sigueSiendoLaMisma =
+    igual(ahora[0], fecha) &&
+    igual(ahora[2], hora) &&
+    igual(ahora[5], barbero) &&
+    igual(ahora[6], 'confirmado') &&
+    esFilaDeBloqueo(ahora);
+
+  if (!sigueSiendoLaMisma) {
+    console.error(
+      `⚠️ La fila ${encontrado.numeroFila} cambió mientras se desbloqueaba. No se toca.`
+    );
+    return { ok: false, motivo: 'la_hoja_cambio' };
+  }
+
+  const respuesta = await updateAppointmentStatus(encontrado.numeroFila, 'Cancelado');
+  if (!respuesta) return { ok: false, motivo: 'no_se_pudo_guardar' };
+
+  return { ok: true, fila: encontrado.numeroFila };
 };
 
 export const getUpcomingAppointmentsByPhone = async (phone) => {
