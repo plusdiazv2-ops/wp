@@ -32,12 +32,24 @@ JSON **no funciona**.
 
 El orden de trabajo. Los números remiten al detalle de más abajo.
 
-> ### ✅ Fases 1 y 2 completadas — 9 de agosto de 2026
+> ### ✅ Las cinco fases están completas — 10 de agosto de 2026
 >
-> El chat ya funciona con listas nativas. Lo único que queda de la Fase 2 son las
-> **imágenes de los barberos**, pendientes de que el dueño consiga las fotos.
+> | Fase | Estado |
+> |---|---|
+> | 1 · Preparar el terreno | ✅ |
+> | 2 · Rediseño del chat | ✅ *(faltan las fotos)* |
+> | 3 · Horarios gestionables | ✅ |
+> | 4 · Estabilidad | ✅ |
+> | 5 · Panel web | ✅ |
 >
-> **La siguiente es la Fase 3.**
+> **Puntos cerrados:** 1, 2, 3, 4, 6, 7, 8, 10, 11, 12, 13 y los dos riesgos
+> latentes (que dejaron de ser latentes: ver más abajo).
+>
+> **Lo que queda abierto:** puntos 5 y 9, la limpieza, y dos cosas que dependen
+> del dueño — conseguir las fotos y apagar el barbero `Prueba`.
+>
+> El punto 7 se cerró de otra forma: los bloqueos ya no se hacen a mano en la
+> hoja, sino desde `/panel/agenda`.
 
 ### Fase 1 — Preparar el terreno ✅
 *Hay que hacerlo antes de tocar los menús.*
@@ -69,24 +81,37 @@ navegación global se rehacen. Es el archivo más delicado del proyecto.
 Meta (creo que 10). Bolon tiene 14 turnos, así que probablemente haya que partir en
 *Mañana / Tarde* — lo cual se ve mejor, no peor.
 
-### Fase 3 — Horarios gestionables
+### Fase 3 — Horarios gestionables ✅
 - **Punto 1** — sacar los horarios del código a una **pestaña de Google Sheets**.
   Así Bolon los edita desde el celular sin que nadie toque código. Costo: $0.
 - **Punto 10** — el domingo de Bolon. Cae solo al hacer el punto 1.
 - **Punto 13** — tests de las funciones de horarios. Este es el momento natural.
 
-### Fase 4 — Estabilidad
+### Fase 4 — Estabilidad ✅
 *Antes de montarle el panel web encima.*
 - **Punto 4** — que `getSheetData()` no invente disponibilidad al fallar, y cachear.
 - **Punto 12** — validar la firma del webhook.
 
-### Fase 5 — Panel web de administración
+### Fase 5 — Panel web de administración ✅
 - **Punto 8** — contraseñas y `SPREADSHEET_ID` fuera del código (ahí sí hace falta
   login de verdad).
 - Panel dentro de la misma app de Railway. Admins: el desarrollador y Bolon (dueño).
 
-### Sin fase — cuando haya rato
-Puntos **5**, **6**, **9**, los riesgos latentes y la limpieza.
+### Lo que queda abierto
+
+- **Punto 5** — el estado en memoria se pierde con cada despliegue. Baja
+  urgencia: el bot se recupera solo mandando el menú.
+- **Punto 9** — dos clientes podrían tomar el mismo turno en el mismo segundo.
+  Nunca ha pasado.
+- **Limpieza** — el código que quedó sin uso. Ver más abajo.
+- **Los dos avisos** del paso de la hora que siguen en texto plano
+  (`messageHandler.js`, "ya tienes 2 turnos" y "ese horario ya fue tomado").
+  Es la última inconsistencia visual del rediseño.
+
+**Dependen del dueño:**
+- Conseguir las **fotos de los barberos** → cierra la Fase 2.
+- **Apagar el barbero `Prueba`** (`testBarberEnabled = false`). Sigue visible
+  para clientes reales.
 
 ---
 
@@ -98,9 +123,17 @@ Cada punto lleva una marca. **La diferencia importa:**
 - 🔮 **Predicción** — está en el código y es real como código, pero **nunca se ha visto
   ocurrir**. En 4 meses de producción no hay un solo caso registrado.
 
-Los ✅ son los puntos **1, 7 y 8**. De esos, el único que ha causado un incidente de
-verdad es el **1**. Todo lo demás es lectura de código: cierto como código, pero una
-apuesta sobre lo que *podría* pasar.
+**A 10 de agosto de 2026, casi todo está hecho.** Los que llevan `✅ HECHO` ya
+se arreglaron; la descripción de abajo se conserva tal cual para que se entienda
+qué era el problema y por qué se resolvió así.
+
+De todos ellos, **solo dos ocurrieron de verdad en producción**: el punto 1
+(horarios desincronizados) y los riesgos latentes del webhook, que costaron
+varias horas con el bot mudo. El resto se arregló antes de que pasara nada.
+
+Sigue en pie la advertencia de fondo: **arreglar cosas que nunca han fallado es
+una apuesta.** Salió bien, pero el orden de trabajo se decidió por el rumbo del
+producto, no por evidencia.
 
 ---
 
@@ -111,7 +144,7 @@ Las secciones de aquí en adelante clasifican por **naturaleza del riesgo**
 
 ### Base del rediseño
 
-### 1. ✅ Horarios duplicados en dos funciones → `config/barbers.js`
+### 1. ✅ HECHO — Horarios duplicados en dos funciones → `config/barbers.js`
 **El único punto de este documento que ya ocurrió en la vida real.**
 
 Las listas de slots de los 3 barberos están copiadas **idénticas** en
@@ -176,7 +209,7 @@ es objetivamente más peligroso que este.
 
 ## 🔴 Crítico — puede tumbar el bot en producción
 
-### 4. 🔮 Cuota de Google Sheets API
+### 4. ✅ HECHO — Cuota de Google Sheets API
 `getAuthClient()` se crea de cero en **cada** función, y `getSheetData()` lee la
 hoja completa `A:J` en **cada** llamada.
 
@@ -238,7 +271,7 @@ distinguir "sesión perdida por reinicio" de "cliente nuevo" y decirle algo como
 *"se reinició el sistema, empecemos de nuevo"*. La solución de fondo (Redis o
 Postgres) déjala para cuando ya funcionen las anteriores.
 
-### 6. 🔮 Cancelar puede borrar el turno equivocado
+### 6. ✅ HECHO — Cancelar puede borrar el turno equivocado
 `updateAppointmentStatus(rowNumber, ...)` calcula `rowNumber` desde el índice del
 array leído. Si entre la lectura y la escritura alguien inserta o borra una fila
 en la hoja a mano (que es exactamente como se crean los "Descanso"), se cancela
@@ -251,11 +284,11 @@ hora coincidan con el turno seleccionado.
 
 ## 🟠 Importante — afecta al negocio
 
-### 7. ✅ No se pueden bloquear horarios desde el bot
+### 7. ✅ HECHO (desde la web) — No se pueden bloquear horarios desde el bot
 Hoy toca abrir la hoja y escribir filas `Descanso1`, `Descanso2`... a mano.
 Debería ser una opción del panel del barbero: *"Bloquear un horario"*.
 
-### 8. ✅ Contraseñas de los barberos hardcodeadas en el código
+### 8. ✅ HECHO — Contraseñas de los barberos hardcodeadas en el código
 Están en texto plano dentro de `messageHandler.js`. Ese archivo se subió como
 código fuente al trabajo de la universidad.
 
@@ -277,7 +310,7 @@ ambas la validación.
 Es poco probable con el volumen actual, pero cuando pase vas a tener un barbero
 con dos clientes a la misma hora.
 
-### 10. 🔮 Bolon no tiene domingo bloqueado
+### 10. ✅ HECHO — Bolon no tiene domingo bloqueado
 **Confirmado con el dueño (9 de agosto de 2026): Bolon NO trabaja domingos.**
 Entonces esto sí es un descuido del código, no una regla de negocio.
 
@@ -305,7 +338,7 @@ medición, no por improbable.
 **Solución:** un `else` que responda algo como *"Por ahora solo entiendo mensajes de
 texto 🙏 Escribe *menu* para ver las opciones"*, y que marque el mensaje como leído.
 
-### 12. 🔮 El webhook no valida la firma de Meta
+### 12. ✅ HECHO — El webhook no valida la firma de Meta
 Verificado en `app.js` y `webhookRoutes.js`: **no hay ningún middleware de validación**.
 La ruta `POST /webhook` acepta cualquier cuerpo que le llegue.
 
@@ -324,7 +357,7 @@ igual con 1 cliente que con 100.
 de procesar. Requiere guardar el cuerpo crudo (`raw body`) porque la firma se calcula
 sobre el texto original, no sobre el JSON ya parseado.
 
-### 13. 🔮 No hay ni un solo test
+### 13. ✅ HECHO — No hay ni un solo test
 Cero tests en todo el repositorio (verificado). De este bot dependen tres personas para
 trabajar, y cada cambio se valida a mano en WhatsApp.
 
@@ -508,6 +541,11 @@ Antes de arreglar algo de navegación, preguntarse si la Fase 2 se lo va a lleva
 | 9 ago 2026 | En el panel, "Salir" se queda en el **4** aunque haya opción 5: costumbre de los barberos |
 | 10 ago 2026 | Dominio de Railway cambiado a `exclusivebarber.up.railway.app`. **Hay que actualizar la URL en Meta el mismo día** |
 | 10 ago 2026 | El webhook responde 200 **antes** de procesar, con deduplicación por `message.id` |
+| 10 ago 2026 | Ladino pasa a atender **solo de noche**, 6:00pm–8:30pm cada 30 min |
+| 10 ago 2026 | Panel web completo: entrar con código por WhatsApp, agenda de la semana, bloquear y editar horarios |
+| 10 ago 2026 | Las contraseñas de los barberos salen del código a variables de Railway |
+| 10 ago 2026 | **No** se hace pantalla de gestión de admins: para dos personas basta con `ADMIN_PRINCIPAL` separado por comas |
+| 10 ago 2026 | **No** se hace tiempo real en el panel: se actualiza al volver a la pestaña y cada 30 s, que cubre casi todo |
 
 ---
 

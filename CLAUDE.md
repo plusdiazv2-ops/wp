@@ -29,28 +29,63 @@ significa turnos perdidos o clientes que no pueden agendar.
 
 ## Qué es el sistema
 
-Bot de WhatsApp que permite a clientes agendar y cancelar turnos, y a los barberos
-consultar su agenda del día — todo dentro de WhatsApp, sin app ni panel web.
+Tres cosas en un solo proceso de Node, en la misma URL de Railway:
+
+1. **El bot de WhatsApp** — clientes agendan y cancelan; los barberos consultan
+   su agenda del día. Es lo principal y lo que no se puede romper.
+2. **La web pública** (`/`) — presentación de la barbería. Archivos estáticos.
+3. **El panel de administración** (`/panel`) — ver la agenda de la semana,
+   bloquear horarios y editar las jornadas. Solo el desarrollador y Bolon.
 
 **Stack:** Node.js (ESM) · WhatsApp Cloud API (Meta) · Google Sheets como base de
 datos · Railway como hosting · Gemini (asistente IA, actualmente desconectado del menú)
+
+**Sin dependencias nuevas desde abril:** ni framework de front, ni base de datos,
+ni librería de sesiones, ni corredor de tests. `npm test` usa el de Node.
+
+⚠️ **Los tres comparten proceso.** Un error que tumbe el servidor deja sin bot a
+la barbería, no solo sin web. Las rutas del webhook van primero en `app.js` a
+propósito.
 
 ## Estructura
 
 ```
 src/
-├── app.js
-├── config/env.js
-├── controllers/          # webhookController — entrada de Meta
+├── app.js                      # servidor: webhook + web + panel
+├── config/
+│   ├── env.js                  # TODAS las variables de entorno
+│   ├── barbers.js              # ⭐ horarios por defecto, fuente única
+│   └── fechas.js               # formatos de fecha de la hoja
+├── controllers/webhookController.js
+├── middlewares/
+│   ├── verifyMetaSignature.js  # firma del webhook
+│   └── requiereSesion.js       # protege /panel
 ├── routes/
+│   ├── webhookRoutes.js
+│   └── panelRoutes.js          # todo el panel
 ├── services/
-│   ├── messageHandler.js       # ⭐ clase con TODA la lógica conversacional
+│   ├── messageHandler.js       # ⭐ TODA la lógica conversacional
 │   ├── whatsappService.js      # envoltorio de la API de Meta
-│   ├── googleSheetsService.js  # persistencia + disponibilidad
+│   ├── googleSheetsService.js  # persistencia, caché y bloqueos
+│   ├── entregasMeta.js         # defensa contra reenvíos de Meta
+│   ├── accesoPanel.js          # códigos de acceso al panel
+│   ├── sesionPanel.js          # cookie firmada del panel
+│   ├── agendaSemana.js         # arma la semana del panel
+│   ├── validarHorarios.js      # revisa un horario antes de guardarlo
 │   ├── geminiAiService.js
 │   └── reminderService.js      # cron de recordatorios
+├── views/                      # HTML del panel (fuera de public/ a propósito)
 └── httpRequest/sendToWhatsApp.js
+
+public/                         # web pública: la sirve express.static
+├── index.html · legal/ · panel/index.html
+└── css/ · js/ · img/
+
+tests/                          # `npm test`, sin dependencias
 ```
+
+**Ojo con `src/views/`:** el HTML del panel vive ahí y **no** en `public/`.
+Si estuviera en `public/`, cualquiera podría abrirlo saltándose el login.
 
 ## Los barberos
 
@@ -59,7 +94,8 @@ src/
 
 ### 🧪 Y un cuarto temporal: `Prueba`
 
-Barbero de pruebas del desarrollador (`573137127100`, contraseña `#prueba001#`).
+Barbero de pruebas del desarrollador (`573137127100`). Su contraseña sale de
+`PASSWORD_PRUEBA`, como la de los demás.
 ⚠️ **Mientras esté activo los clientes reales lo ven y pueden agendarse con él.**
 
 Todo cuelga de un interruptor en el constructor:
@@ -68,22 +104,29 @@ Todo cuelga de un interruptor en el constructor:
 this.testBarberEnabled = true;   // ponerlo en false lo quita de todo
 ```
 
-Su horario está en `googleSheetsService.js` y puede quedarse ahí aunque se apague:
+Su horario está en `config/barbers.js` y puede quedarse ahí aunque se apague:
 si no está en la lista de barberos, nadie llega hasta él.
 
 Tiene el permiso `canSeeAll`, que **no tienen los demás**: al entrar con su
 contraseña primero escoge de cuál barbero ver la agenda, y dentro del panel gana
 una opción 5 para cambiar de barbero sin salir.
 
-**Sus horarios NO están en `messageHandler.js`.** Están duplicados en
-`googleSheetsService.js`, dentro de DOS funciones distintas:
+### Dónde viven los horarios
 
-- `getAvailableSlots()` — lo que ve el cliente al agendar
-- `getDailyScheduleByBarber()` — lo que ve el barbero en su panel
+Hasta agosto de 2026 estaban **copiados** en dos funciones de
+`googleSheetsService.js`, y cambiar una y olvidar la otra hacía que el cliente
+y el barbero vieran cosas distintas. **Eso ya no es así.** Ahora hay dos capas:
 
-⚠️ **Si cambias el horario de un barbero, tienes que cambiarlo en las DOS.**
-Si te pido cambiar un horario y solo tocas una, el bot va a mostrar cosas
-distintas al cliente y al barbero. Esto ya pasó antes.
+1. **`src/config/barbers.js`** — los horarios por defecto. Fuente única: las dos
+   funciones leen de aquí, es imposible que difieran.
+2. **Pestaña `horarios` de la hoja** — si existe, **manda sobre el código**.
+
+Lo normal es cambiarlos desde **el panel web** (`/panel/horarios`), que escribe
+en esa pestaña. Tocar `barbers.js` solo hace falta para cambiar el respaldo.
+
+⚠️ **Si un cambio de horario "no se ve", casi siempre es la pestaña.** El código
+puede decir una cosa y la pestaña otra — y gana la pestaña. Y hay un caché de
+5 minutos (que el panel limpia solo al guardar, pero editar la hoja a mano no).
 
 Reglas por barbero (resumen — la fuente de verdad es el código):
 - **Bolon:** miércoles solo tarde; resto del día completo. **Sí tiene turnos el domingo**
@@ -166,7 +209,9 @@ barberos (`adminPhones`) no tienen límite.
 ## Panel del barbero
 
 Se activa cuando el barbero escribe **su contraseña exacta** desde su número
-registrado (definidas en `this.barberAdmins`). Es una lista:
+registrado. Las contraseñas **ya no están en el código**: vienen de
+`PASSWORD_BOLON`, `PASSWORD_JULIAN`, `PASSWORD_LADINO` y `PASSWORD_PRUEBA`.
+Si falta alguna, ese barbero no puede entrar y se avisa al arrancar. Es una lista:
 
 ```
 1. Ver agenda de hoy
@@ -203,6 +248,64 @@ Hay filas históricas con este problema (ver columna I, mezcla `2026-04-29` con 
 
 **Bloqueos de horario:** hoy se hacen a mano, agregando filas con nombre
 `Descanso1`, `Descanso2`, etc. No hay función para esto en el bot.
+
+## La web y el panel
+
+**`/`** — presentación de la barbería. HTML y CSS puros, sin compilar nada.
+Se descartó React a propósito: habría metido un paso de build y ~200 MB de
+dependencias en la misma app que atiende a los clientes.
+
+**`/panel`** — administración. Se entra sin contraseña:
+
+```
+1. El admin le escribe  acceso  al bot
+2. El bot le responde un código de 6 dígitos (5 minutos, un solo uso)
+3. Lo escribe en /panel y entra. Cookie firmada, 30 días
+```
+
+Empieza en WhatsApp porque Meta solo deja mandar mensajes libres dentro de las
+24 horas del último del usuario. Como el admin escribe primero, la respuesta es
+gratis y no necesita plantilla aprobada.
+
+| Pantalla | Qué hace |
+|---|---|
+| `/panel/agenda` | La semana de un barbero. Tocar un turno libre lo **bloquea** |
+| `/panel/horarios` | Editar la jornada de cada barbero |
+
+**Bloquear** escribe una fila normal con nombre `Descanso`: para el bot es un
+turno ocupado más. **Liberar** la pasa a `Cancelado` — nunca se borra, porque
+borrar corre los números de todas las de abajo.
+
+⚠️ **Antes de escribir cualquier fila se relee y se verifica que sea la
+correcta.** Vale para bloqueos y para las cancelaciones de clientes. Sin eso,
+una fila insertada a mano en la hoja hace que se cancele el turno de otro.
+
+## Variables de entorno
+
+| Variable | Si falta |
+|---|---|
+| `API_TOKEN` · `BUSINESS_PHONE` · `API_VERSION` | El bot no puede enviar nada |
+| `WEBHOOK_VERIFY_TOKEN` | Meta no puede verificar el webhook |
+| `GOOGLE_CREDENTIALS_JSON` | No hay agenda: todo falla con aviso claro |
+| `ADMIN_PRINCIPAL` | Nadie puede entrar al panel |
+| `PASSWORD_BOLON` · `_JULIAN` · `_LADINO` · `_PRUEBA` | Ese barbero se queda sin panel |
+| `SESION_SECRETO` | El panel funciona, pero cada despliegue cierra las sesiones |
+| `META_APP_SECRET` | La firma del webhook queda **apagada** |
+| `SPREADSHEET_ID` · `URL_PUBLICA` | Llevan valor por defecto |
+
+Ninguna tumba el bot al faltar, a propósito: todas avisan en los logs al
+arrancar en vez de fallar en silencio.
+
+## Tests
+
+```bash
+npm test
+```
+
+Usa el corredor que ya trae Node, sin instalar nada. Cubren lo que ya ha dolido:
+horarios, validación antes de guardar, firma del webhook, sesiones del panel,
+reenvíos de Meta y la verificación antes de cancelar. Hay uno que **falla si
+alguien vuelve a escribir una contraseña o un token en el código**.
 
 ## Recordatorios
 
