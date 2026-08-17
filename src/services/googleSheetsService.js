@@ -7,6 +7,7 @@ import {
   turnosPorDefecto,
 } from '../config/barbers.js';
 import { fechaVisible, fechaHoraTurno } from '../config/fechas.js';
+import config from '../config/env.js';
 
 const sheets = google.sheets('v4');
 
@@ -68,7 +69,7 @@ const getAuthClient = async () => {
   return clienteAuth;
 };
 
-const SPREADSHEET_ID = '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ';
+const SPREADSHEET_ID = config.SPREADSHEET_ID;
 
 // ============================================================
 // HORARIOS — pestaña `horarios`, con los del código como respaldo

@@ -22,24 +22,30 @@ class MessageHandler {
     this.cancelState = {};
     this.barberAdminState = {};
     this.barbers = ["Bolon", "Julian", "Ladino"];
+    // ⚠️ Las contraseñas ya NO viven aquí: vienen de las variables de
+    // Railway. Este archivo se subió como código fuente al trabajo de la
+    // universidad y las llevaba escritas en texto plano.
+    //
+    // Si a un barbero le falta su variable, no puede entrar a su panel y se
+    // avisa al arrancar. El bot sigue atendiendo clientes igual.
     this.barberAdmins = {
 
       "573146926477": {
         name: "Bolon",
         barber: "bolon",
-        password: "#bolon001#"
+        password: config.PASSWORD_BOLON
       },
 
       "573002730493": {
         name: "Julian",
         barber: "julian",
-        password: "#julian001#"
+        password: config.PASSWORD_JULIAN
       },
 
       "573215342867": {
         name: "Ladino",
         barber: "ladino",
-        password: "Ladino001"
+        password: config.PASSWORD_LADINO
       },
 
     };
@@ -79,11 +85,33 @@ class MessageHandler {
       this.barberAdmins[TEST_PHONE] = {
         name: "Prueba",
         barber: "prueba",
-        password: "#prueba001#",
+        password: config.PASSWORD_PRUEBA,
         // 👑 Puede abrir el panel de cualquier barbero, no solo el suyo.
         canSeeAll: true
       };
     }
+
+    this.avisarContrasenasFaltantes();
+  }
+
+  /**
+   * Avisa de los barberos que se quedaron sin contraseña configurada.
+   *
+   * Sin esto, un barbero escribiría su contraseña de siempre, no pasaría
+   * nada, y nadie sabría por qué. Queda en los logs de Railway al arrancar.
+   */
+  avisarContrasenasFaltantes() {
+    const sinClave = Object.values(this.barberAdmins)
+      .filter(admin => !admin.password)
+      .map(admin => `PASSWORD_${admin.name.toUpperCase()}`);
+
+    if (!sinClave.length) return;
+
+    console.warn(
+      `⚠️ Sin contraseña de panel: ${sinClave.join(', ')}. ` +
+      `Esos barberos no pueden entrar a su panel hasta que se pongan esas ` +
+      `variables en Railway. El bot sigue funcionando normal.`
+    );
   }
 
   normalizeText(text) {

@@ -20,6 +20,23 @@ export default {
 
   // Dirección pública, para armar el enlace que se le manda al admin.
   URL_PUBLICA: process.env.URL_PUBLICA || 'https://exclusivebarber.up.railway.app',
+  // Identificador de la hoja de cálculo. Se puede sobrescribir desde Railway,
+  // pero lleva el valor de siempre como respaldo: sin él NADA funciona, y no
+  // vale la pena arriesgar una caída total por una variable que se olvide.
+  // Además no es un secreto real: sin las credenciales de Google no sirve.
+  SPREADSHEET_ID: process.env.SPREADSHEET_ID
+    || '1vejgS9KOgo2FDm7sIG8v6SVMM1BFSPABMmwk43RbaVQ',
+
+  // Contraseñas del panel de cada barbero.
+  // ⚠️ Estas NO llevan respaldo a propósito: el punto de sacarlas del código
+  // es que dejen de estar en el código. Si a un barbero le falta la suya, no
+  // puede entrar a su panel — y se avisa en los logs al arrancar. El bot
+  // sigue atendiendo clientes con normalidad.
+  PASSWORD_BOLON: process.env.PASSWORD_BOLON,
+  PASSWORD_JULIAN: process.env.PASSWORD_JULIAN,
+  PASSWORD_LADINO: process.env.PASSWORD_LADINO,
+  PASSWORD_PRUEBA: process.env.PASSWORD_PRUEBA,
+
   API_TOKEN: process.env.API_TOKEN,
   PORT: process.env.PORT,
   BUSINESS_PHONE: process.env.BUSINESS_PHONE,
