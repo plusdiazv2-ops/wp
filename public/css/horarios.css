@@ -1,0 +1,137 @@
+/* Pantalla de horarios */
+
+.agenda__nav { display: flex; align-items: center; gap: 1rem; }
+.agenda__nav a {
+  color: var(--texto-suave);
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+.agenda__nav a:hover { color: var(--dorado); }
+.agenda__nav a.es-actual { color: var(--dorado); border-bottom-color: var(--dorado); }
+
+.horarios {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.horarios__titulo {
+  margin: 0 0 0.75rem;
+  font-family: var(--display);
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
+  font-weight: 400;
+  color: var(--crema);
+}
+
+.horarios__intro { margin: 0 0 1.5rem; color: var(--texto-suave); font-size: 0.92rem; }
+.horarios__quien { display: block; margin-bottom: 1rem; }
+
+.horarios__origen {
+  margin: 0 0 1.25rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.horarios__aviso {
+  padding: 0.9rem 1.15rem;
+  margin-bottom: 1.5rem;
+  border-left: 3px solid var(--dorado);
+  border-radius: 0 8px 8px 0;
+  background: rgba(201, 168, 106, 0.08);
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+}
+.horarios__aviso strong { color: var(--crema); }
+
+.horarios__ok {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1.1rem;
+  border-left: 3px solid #78c88c;
+  border-radius: 0 8px 8px 0;
+  background: rgba(120, 200, 140, 0.1);
+  color: #a8e0ba;
+  font-size: 0.9rem;
+}
+
+/* ── Los días ─────────────────────────────────────────── */
+.horarios__form { display: flex; flex-direction: column; gap: 0.9rem; }
+
+.dia {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.dia__nombre {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--crema);
+}
+
+.dia__campo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dia input {
+  flex: 1;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(201, 168, 106, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--texto);
+  font-family: var(--cuerpo);
+  font-size: 0.9rem;
+}
+.dia input:focus { outline: none; border-color: var(--dorado); }
+.dia input::placeholder { color: #5f584f; }
+
+.dia__cuenta {
+  min-width: 4.5rem;
+  font-size: 0.76rem;
+  color: var(--texto-suave);
+  text-align: right;
+}
+.dia__cuenta.descansa { color: #6f665b; font-style: italic; }
+.dia__cuenta.se-pasa { color: #e06666; font-weight: 600; }
+
+.dia--cambiado input { border-color: rgba(201, 168, 106, 0.7); }
+
+.horarios__copiar {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px dashed rgba(201, 168, 106, 0.4);
+  border-radius: 999px;
+  background: none;
+  color: var(--texto-suave);
+  font-family: var(--cuerpo);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.horarios__copiar:hover { color: var(--dorado); border-color: var(--dorado); }
+
+.horarios__acciones {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  margin-top: 1.75rem;
+  flex-wrap: wrap;
+}
+.horarios__acciones .boton-principal { animation: none; }
+
+.horarios__nota {
+  margin-top: 1.5rem;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+  opacity: 0.8;
+}
+
+@media (max-width: 600px) {
+  .dia { grid-template-columns: 1fr; gap: 0.35rem; }
+  .dia__nombre { font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; }
+}

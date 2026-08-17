@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/css/estilos.css" />
   <link rel="stylesheet" href="/css/panel.css" />
   <link rel="stylesheet" href="/css/agenda.css" />
+  <link rel="stylesheet" href="/css/horarios.css" />
 </head>
 
 <body>
@@ -22,7 +23,11 @@
 
   <header class="agenda__barra">
     <p class="agenda__marca">EXCLUSIVE BARBER</p>
-    <button class="agenda__salir" data-salir>Salir</button>
+    <nav class="agenda__nav">
+      <a href="/panel/agenda" class="es-actual">Agenda</a>
+      <a href="/panel/horarios">Horarios</a>
+      <button class="agenda__salir" data-salir>Salir</button>
+    </nav>
   </header>
 
   <main class="agenda">

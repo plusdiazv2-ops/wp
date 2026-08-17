@@ -235,6 +235,116 @@ export const obtenerAdminsWeb = async () => {
   return datos;
 };
 
+
+/**
+ * Guarda los horarios de UN barbero en la pestaña `horarios`.
+ *
+ * `porDia` es un objeto { 0: ['9am', ...], 1: [...] } con los 7 días.
+ *
+ * Se lee la pestaña entera, se reemplazan solo las filas de ese barbero y se
+ * escribe todo de vuelta. Es más simple y más seguro que tocar filas por
+ * número: no depende de que nadie haya movido nada.
+ */
+export const guardarHorarios = async (barbero, porDia) => {
+  const authClient = await getAuthClient();
+
+  await asegurarPestanaHorarios(authClient);
+
+  // Lo que ya hay, para no pisar a los otros barberos.
+  let filas = [];
+  try {
+    const respuesta = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${PESTANA_HORARIOS}'!A:C`,
+      auth: authClient,
+    });
+    filas = respuesta.data.values || [];
+  } catch (error) {
+    throw new SheetsUnavailableError(error);
+  }
+
+  const clave = String(barbero).toLowerCase().trim();
+
+  const deOtros = filas
+    .slice(1)
+    .filter(fila => String(fila?.[0] || '').toLowerCase().trim() !== clave);
+
+  const nuevas = NOMBRES_DIAS.map((nombreDia, dia) => [
+    barbero,
+    nombreDia,
+    (porDia[dia] || []).join(', '),
+  ]);
+
+  const todo = [['Barbero', 'Día', 'Turnos'], ...deOtros, ...nuevas];
+
+  try {
+    // Se limpia primero: si el horario nuevo tiene menos filas que el viejo,
+    // sin esto quedarían filas sueltas del anterior.
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${PESTANA_HORARIOS}'!A:C`,
+      auth: authClient,
+    });
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${PESTANA_HORARIOS}'!A1`,
+      valueInputOption: 'RAW',
+      resource: { values: todo },
+      auth: authClient,
+    });
+  } catch (error) {
+    throw new SheetsUnavailableError(error);
+  }
+
+  // Sin esto el cambio tardaría hasta 5 minutos en verse.
+  limpiarCacheHorarios();
+
+  return { ok: true, filas: todo.length - 1 };
+};
+
+/** Crea la pestaña `horarios` si no existe. Si ya está, no hace nada. */
+async function asegurarPestanaHorarios(authClient) {
+  try {
+    const libro = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+      auth: authClient,
+    });
+
+    const existe = (libro.data.sheets || []).some(
+      hoja => hoja.properties?.title === PESTANA_HORARIOS
+    );
+
+    if (existe) return;
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      auth: authClient,
+      resource: {
+        requests: [{ addSheet: { properties: { title: PESTANA_HORARIOS } } }],
+      },
+    });
+
+    console.log(`Pestaña "${PESTANA_HORARIOS}" creada.`);
+  } catch (error) {
+    throw new SheetsUnavailableError(error);
+  }
+}
+
+/** Lo que hay hoy para un barbero, y de dónde sale. */
+export const horariosDeBarbero = async (barbero) => {
+  const deLaHoja = await leerHorariosDeLaHoja();
+  const clave = String(barbero).toLowerCase().trim();
+  const suyos = deLaHoja[clave];
+
+  return NOMBRES_DIAS.map((nombreDia, dia) => ({
+    dia,
+    nombre: nombreDia,
+    turnos: Array.isArray(suyos?.[dia]) ? suyos[dia] : turnosPorDefecto(clave, dia),
+    deLaHoja: Array.isArray(suyos?.[dia]),
+  }));
+};
+
 // GUARDAR FILA
 async function addRowSheet(auth, values) {
   const request = {

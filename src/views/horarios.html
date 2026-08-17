@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+
+  <title>Horarios · Exclusive Barber</title>
+  <link rel="icon" href="/img/logo.jpg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/css/estilos.css" />
+  <link rel="stylesheet" href="/css/panel.css" />
+  <link rel="stylesheet" href="/css/agenda.css" />
+  <link rel="stylesheet" href="/css/horarios.css" />
+</head>
+
+<body>
+  <div class="grano" aria-hidden="true"></div>
+
+  <header class="agenda__barra">
+    <p class="agenda__marca">EXCLUSIVE BARBER</p>
+    <nav class="agenda__nav">
+      <a href="/panel/agenda">Agenda</a>
+      <a href="/panel/horarios" class="es-actual">Horarios</a>
+      <button class="agenda__salir" data-salir>Salir</button>
+    </nav>
+  </header>
+
+  <main class="horarios">
+    <h1 class="horarios__titulo">Horarios de trabajo</h1>
+
+    <p class="horarios__intro">
+      Escribe las horas separadas por coma. Deja un día <strong>vacío</strong> si ese
+      día no trabaja.
+    </p>
+
+    <label class="agenda__selector horarios__quien">
+      <span>Barbero</span>
+      <select id="barbero"></select>
+    </label>
+
+    <p class="horarios__origen" id="origen"></p>
+
+    <div class="horarios__aviso horarios__aviso--ojo">
+      <strong>Ojo:</strong> cambiar el horario <strong>no cancela</strong> los turnos ya
+      agendados. Si le quitas una hora a un barbero, quien ya la tenía reservada
+      sigue con su turno — y hay que avisarle.
+    </div>
+
+    <p class="agenda__aviso" id="error" hidden></p>
+    <p class="horarios__ok" id="ok" hidden></p>
+
+    <form id="formulario" class="horarios__form"></form>
+
+    <div class="horarios__acciones">
+      <button type="button" class="boton-principal" id="guardar">Guardar cambios</button>
+      <button type="button" class="boton-secundario" id="deshacer">Deshacer</button>
+    </div>
+
+    <p class="horarios__nota">
+      Los cambios se ven en el chatbot al instante.
+    </p>
+  </main>
+
+  <script src="/js/horarios.js"></script>
+</body>
+</html>

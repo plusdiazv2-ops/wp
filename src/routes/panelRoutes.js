@@ -7,9 +7,12 @@ import {
   obtenerTurnos,
   bloquearHorario,
   desbloquearHorario,
+  guardarHorarios,
+  horariosDeBarbero,
 } from '../services/googleSheetsService.js';
 import { requiereSesion } from '../middlewares/requiereSesion.js';
-import { esTurnoValido } from '../config/barbers.js';
+import { esTurnoValido, NOMBRES_DIAS } from '../config/barbers.js';
+import { revisarSemana } from '../services/validarHorarios.js';
 import { SheetsUnavailableError } from '../services/googleSheetsService.js';
 import messageHandler from '../services/messageHandler.js';
 import {
@@ -136,6 +139,7 @@ router.get('/panel/inicio', requiereSesion, (req, res) => {
     </div>
 
     <p><a class="boton-principal" href="/panel/agenda">Ver la agenda</a></p>
+    <p><a class="boton-secundario" href="/panel/horarios">Editar horarios</a></p>
 
     <button class="boton-secundario" data-salir>Cerrar sesión</button>
     <p class="panel__volver"><a href="/">← Ir a la página de la barbería</a></p>
@@ -279,6 +283,62 @@ function responderFallo(res, error, accion) {
       : 'Algo salió mal.',
   });
 }
+
+/** Los horarios actuales de un barbero. */
+router.get('/panel/api/horarios', requiereSesion, async (req, res) => {
+  const barberos = messageHandler.barbers;
+  const pedido = String(req.query.barbero || '').toLowerCase().trim();
+  const barbero = barberos.find(b => b.toLowerCase() === pedido) || barberos[0];
+
+  try {
+    const dias = await horariosDeBarbero(barbero);
+
+    return res.json({
+      ok: true,
+      barbero,
+      barberos,
+      dias,
+      // Si ningún día viene de la hoja, todavía manda el código.
+      desdeLaHoja: dias.some(d => d.deLaHoja),
+    });
+  } catch (error) {
+    return responderFallo(res, error, 'leer horarios');
+  }
+});
+
+/** Guardar los horarios de un barbero. */
+router.post('/panel/api/horarios', requiereSesion, async (req, res) => {
+  const barberos = messageHandler.barbers;
+  const pedido = String(req.body?.barbero || '').toLowerCase().trim();
+  const barbero = barberos.find(b => b.toLowerCase() === pedido);
+
+  if (!barbero) return res.status(400).json({ ok: false, error: 'Ese barbero no existe.' });
+
+  const { porDia, errores } = revisarSemana(req.body?.dias || {});
+
+  if (errores.length) {
+    return res.status(400).json({ ok: false, error: errores.join(String.fromCharCode(10)), errores });
+  }
+
+  try {
+    await guardarHorarios(barbero, porDia);
+
+    const resumen = NOMBRES_DIAS
+      .map((d, i) => `${d} ${porDia[i].length}`)
+      .join(', ');
+
+    console.log(`📅 ${req.admin.telefono} cambió los horarios de ${barbero}: ${resumen}`);
+
+    return res.json({ ok: true, dias: porDia });
+  } catch (error) {
+    return responderFallo(res, error, 'guardar horarios');
+  }
+});
+
+/** La pantalla de horarios. */
+router.get('/panel/horarios', requiereSesion, (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'src', 'views', 'horarios.html'));
+});
 
 /** La pantalla de la agenda. */
 router.get('/panel/agenda', requiereSesion, (req, res) => {
