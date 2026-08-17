@@ -165,7 +165,9 @@ router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
   const lunes = lunesDeLaSemana(String(req.query.desde || '') || hoyEnBogota());
 
   try {
-    const { horas, dias } = await armarSemana(barbero, lunes);
+    // El botón Actualizar pide datos frescos; la carga normal usa el caché.
+    const fresco = req.query.fresco === '1';
+    const { horas, dias } = await armarSemana(barbero, lunes, undefined, { fresco });
 
     return res.json({
       ok: true,
@@ -175,6 +177,7 @@ router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
       semanaAnterior: sumarDias(lunes, -7),
       semanaSiguiente: sumarDias(lunes, 7),
       rotulo: rotuloSemana(dias),
+      consultado: Date.now(),
       horas,
       dias,
     });

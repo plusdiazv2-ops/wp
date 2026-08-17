@@ -92,12 +92,12 @@ export function rotuloSemana(dias) {
  * Devuelve { horas, dias } donde cada día trae sus turnos indexados por hora.
  * Las horas van ordenadas y son la unión de las de todos los días.
  */
-export async function armarSemana(barbero, lunesISO, hoyISO = hoyEnBogota()) {
+export async function armarSemana(barbero, lunesISO, hoyISO = hoyEnBogota(), { fresco = false } = {}) {
   const dias = diasDeLaSemana(lunesISO, hoyISO);
   const horas = new Set();
 
   for (const dia of dias) {
-    const agenda = await getDailyScheduleByBarber(barbero, dia.fecha);
+    const agenda = await getDailyScheduleByBarber(barbero, dia.fecha, { fresco });
 
     dia.turnos = {};
     dia.trabaja = agenda.length > 0;

@@ -5,18 +5,41 @@ const tabla = $('tabla');
 const aviso = $('aviso');
 
 let estado = { barbero: '', lunes: '' };
+let ultimaCarga = 0;
+
+/* ── Qué tan viejos son los datos ─────────────────────────
+   Sin esto, la pantalla parece siempre al día aunque lleve media hora
+   abierta. El reloj es la señal honesta de cuándo se consultó. */
+function pintarCuando() {
+  const cuando = $('cuando');
+  if (!ultimaCarga) { cuando.textContent = ''; return; }
+
+  const segundos = Math.round((Date.now() - ultimaCarga) / 1000);
+
+  cuando.textContent =
+    segundos < 60 ? 'al día' :
+    segundos < 3600 ? `hace ${Math.floor(segundos / 60)} min` :
+    `hace ${Math.floor(segundos / 3600)} h`;
+
+  cuando.classList.toggle('esta-viejo', segundos >= 120);
+}
+
+setInterval(pintarCuando, 10000);
 
 const mostrarAviso = (texto) => {
   aviso.textContent = texto;
   aviso.hidden = !texto;
 };
 
-async function cargar() {
+async function cargar({ fresco = false, deFondo = false } = {}) {
   const parametros = new URLSearchParams();
   if (estado.barbero) parametros.set('barbero', estado.barbero);
   if (estado.lunes) parametros.set('desde', estado.lunes);
+  if (fresco) parametros.set('fresco', '1');
 
-  tabla.innerHTML = '<caption class="agenda__cargando">Cargando…</caption>';
+  // En una recarga de fondo no se borra lo que ya está en pantalla: si algo
+  // falla, es mejor seguir viendo los datos viejos que quedarse en blanco.
+  if (!deFondo) tabla.innerHTML = '<caption class="agenda__cargando">Cargando…</caption>';
 
   let datos;
   try {
@@ -29,18 +52,22 @@ async function cargar() {
 
     datos = await respuesta.json();
   } catch {
+    if (deFondo) return;   // el reloj de "hace X" ya delata que quedó viejo
     tabla.innerHTML = '';
     mostrarAviso('No se pudo conectar. Revisa tu internet.');
     return;
   }
 
   if (!datos.ok) {
+    if (deFondo) return;
     tabla.innerHTML = '';
     mostrarAviso(datos.error || 'No se pudo cargar la agenda.');
     return;
   }
 
   mostrarAviso('');
+  ultimaCarga = Date.now();
+  pintarCuando();
   estado = { barbero: datos.barbero, lunes: datos.lunes };
 
   pintarSelector(datos);
@@ -145,7 +172,7 @@ Vuelve a quedar disponible para los clientes.`;
     }
 
     mostrarAviso('');
-    await cargar();
+    await cargar({ fresco: true });
   } catch {
     mostrarAviso('No se pudo conectar. Revisa tu internet.');
     celda.classList.remove('celda--guardando');
@@ -155,7 +182,29 @@ Vuelve a quedar disponible para los clientes.`;
 
 $('barbero').addEventListener('change', e => {
   estado.barbero = e.target.value;
-  cargar();
+  $('actualizar').addEventListener('click', async (e) => {
+  e.currentTarget.disabled = true;
+  await cargar({ fresco: true });
+  e.currentTarget.disabled = false;
+});
+
+/* ── Refresco automático ──────────────────────────────────
+   Solo cuando alguien está mirando. Si la pestaña está de fondo o
+   minimizada no se consulta nada: no tiene sentido gastar lecturas de
+   Sheets —que el bot también necesita— para una pantalla que nadie ve. */
+const CADA = 30000;
+
+setInterval(() => {
+  if (document.visibilityState === 'visible') cargar({ deFondo: true });
+}, CADA);
+
+// Al volver a la pestaña se actualiza de una. Es el caso de todos los días:
+// agendas algo por WhatsApp, vuelves al panel, y ya está al día.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') cargar({ fresco: true, deFondo: true });
+});
+
+cargar();
 });
 
 $('anterior').addEventListener('click', e => {

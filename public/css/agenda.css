@@ -265,3 +265,34 @@ thead th.es-pasado { opacity: 0.5; }
 .punto--bloqueado {
   background: repeating-linear-gradient(45deg, #786e5f 0 3px, #3a342c 3px 6px);
 }
+
+/* ── Actualizar / frescura de los datos ────────────────── */
+.agenda__frescura {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.agenda__actualizar {
+  padding: 0.6rem 1rem;
+  border: 1px solid rgba(201, 168, 106, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: var(--dorado);
+  font-family: var(--cuerpo);
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 180ms var(--curva);
+}
+.agenda__actualizar:hover { background: rgba(201, 168, 106, 0.14); }
+.agenda__actualizar[disabled] { opacity: 0.5; cursor: default; }
+
+.agenda__cuando {
+  font-size: 0.76rem;
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+/* Cuando los datos ya tienen rato, el aviso se hace notar */
+.agenda__cuando.esta-viejo { color: #e0a86a; }

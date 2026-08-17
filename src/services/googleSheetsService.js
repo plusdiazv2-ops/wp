@@ -479,10 +479,12 @@ export const getBookedSlots = async (barber, date) => {
 // duplicado en dos sitios.
 const slotToMinutes = (slot) => turnoAMinutos(slot);
 
-export const getDailyScheduleByBarber = async (barber, date) => {
+export const getDailyScheduleByBarber = async (barber, date, { fresco = false } = {}) => {
   try {
     const authClient = await getAuthClient();
-    const rows = await getSheetData(authClient);
+    // `fresco` lo usa el botón Actualizar del panel: sin esto, presionarlo
+    // dentro de los 20 segundos del caché no cambiaría nada y parecería roto.
+    const rows = await getSheetData(authClient, { fresco });
 
     const currentDate = new Date(`${date}T00:00:00`);
     const day = currentDate.getDay();
