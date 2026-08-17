@@ -13,6 +13,11 @@ export default {
   // equivoca editando la lista de admins. Si falta, nadie entra al panel.
   ADMIN_PRINCIPAL: process.env.ADMIN_PRINCIPAL,
 
+  // Con qué se firman las cookies de sesión del panel. Si falta, se genera
+  // uno al azar al arrancar: el panel funciona, pero cada despliegue cierra
+  // las sesiones abiertas.
+  SESION_SECRETO: process.env.SESION_SECRETO,
+
   // Dirección pública, para armar el enlace que se le manda al admin.
   URL_PUBLICA: process.env.URL_PUBLICA || 'https://exclusivebarber.up.railway.app',
   API_TOKEN: process.env.API_TOKEN,

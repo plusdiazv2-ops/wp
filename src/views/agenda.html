@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+
+  <title>Agenda · Exclusive Barber</title>
+  <link rel="icon" href="/img/logo.jpg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/css/estilos.css" />
+  <link rel="stylesheet" href="/css/panel.css" />
+  <link rel="stylesheet" href="/css/agenda.css" />
+</head>
+
+<body>
+  <div class="grano" aria-hidden="true"></div>
+
+  <header class="agenda__barra">
+    <p class="agenda__marca">EXCLUSIVE BARBER</p>
+    <button class="agenda__salir" data-salir>Salir</button>
+  </header>
+
+  <main class="agenda">
+    <div class="agenda__controles">
+      <label class="agenda__selector">
+        <span>Barbero</span>
+        <select id="barbero"></select>
+      </label>
+
+      <div class="agenda__semana">
+        <button type="button" id="anterior" aria-label="Semana anterior">‹</button>
+        <span id="rotulo">Cargando…</span>
+        <button type="button" id="siguiente" aria-label="Semana siguiente">›</button>
+      </div>
+
+      <button type="button" class="agenda__hoy" id="hoy">Esta semana</button>
+    </div>
+
+    <p class="agenda__aviso" id="aviso" hidden></p>
+
+    <div class="agenda__marco">
+      <table class="agenda__tabla" id="tabla"></table>
+    </div>
+
+    <div class="agenda__leyenda">
+      <span><i class="punto punto--ocupado"></i> Ocupado</span>
+      <span><i class="punto punto--libre"></i> Libre</span>
+      <span><i class="punto punto--cerrado"></i> No trabaja</span>
+    </div>
+
+    <p class="agenda__nota">
+      Por ahora esta pantalla solo muestra. Bloquear horarios viene en el siguiente paso.
+    </p>
+  </main>
+
+  <script src="/js/agenda.js"></script>
+</body>
+</html>

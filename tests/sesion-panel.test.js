@@ -6,6 +6,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 
 process.env.SESION_SECRETO = 'un-secreto-de-mentira-para-probar';
 
@@ -19,6 +20,20 @@ const {
 } = await import('../src/services/sesionPanel.js');
 
 const YO = '573137127100';
+
+describe('la variable de entorno está conectada', () => {
+  // Esto se escribió porque SESION_SECRETO se documentó y se usó en el
+  // código, pero nunca se agregó a env.js: config.SESION_SECRETO era
+  // siempre undefined y la variable de Railway no hacía nada. El panel
+  // parecía funcionar porque el mismo proceso firmaba y verificaba con el
+  // secreto temporal, pero cada despliegue cerraba todas las sesiones.
+  test('config expone SESION_SECRETO', async () => {
+    const config = (await import('../src/config/env.js')).default;
+
+    assert.equal(config.SESION_SECRETO, process.env.SESION_SECRETO);
+    assert.ok(config.SESION_SECRETO, 'debería leerse del entorno');
+  });
+});
 
 describe('la cookie de sesión', () => {
   test('lo que se firma se puede leer', () => {
@@ -84,16 +99,23 @@ describe('intentos de falsificarla', () => {
     }
   });
 
-  test('una cookie firmada con OTRO secreto no entra', async () => {
+  test('una cookie firmada con OTRO secreto no entra', () => {
+    // Se comprueba en un proceso aparte con otro SESION_SECRETO, que es como
+    // pasa de verdad: cambiar el secreto en Railway debe cerrar todas las
+    // sesiones abiertas. Recargar el módulo en el mismo proceso no sirve,
+    // porque env.js lee las variables una sola vez al arrancar.
     const cookieAjena = crearSesion(YO);
 
-    // Se recarga el módulo con un secreto distinto, como si fuera otro servidor.
-    process.env.SESION_SECRETO = 'otro-secreto-distinto';
-    const otro = await import('../src/services/sesionPanel.js?v=2');
+    const salida = execFileSync(
+      process.execPath,
+      ['--input-type=module', '-e', `
+        const { leerSesion } = await import('./src/services/sesionPanel.js');
+        console.log(JSON.stringify(leerSesion(process.argv[1])));
+      `, cookieAjena],
+      { env: { ...process.env, SESION_SECRETO: 'otro-secreto-distinto' }, encoding: 'utf8' }
+    );
 
-    assert.equal(otro.leerSesion(cookieAjena), null);
-
-    process.env.SESION_SECRETO = 'un-secreto-de-mentira-para-probar';
+    assert.ok(salida.trim().endsWith('null'), 'el otro proceso no debería aceptarla');
   });
 });
 

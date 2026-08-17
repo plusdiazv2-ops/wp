@@ -1,8 +1,18 @@
 import express from 'express';
+import path from 'node:path';
 
 import { verificarCodigo, puedeEntrar, normalizarTelefono } from '../services/accesoPanel.js';
 import { obtenerAdminsWeb } from '../services/googleSheetsService.js';
 import { requiereSesion } from '../middlewares/requiereSesion.js';
+import { SheetsUnavailableError } from '../services/googleSheetsService.js';
+import messageHandler from '../services/messageHandler.js';
+import {
+  armarSemana,
+  lunesDeLaSemana,
+  rotuloSemana,
+  sumarDias,
+  hoyEnBogota,
+} from '../services/agendaSemana.js';
 import {
   crearSesion,
   leerSesion,
@@ -119,6 +129,8 @@ router.get('/panel/inicio', requiereSesion, (req, res) => {
       </ul>
     </div>
 
+    <p><a class="boton-principal" href="/panel/agenda">Ver la agenda</a></p>
+
     <button class="boton-secundario" data-salir>Cerrar sesión</button>
     <p class="panel__volver"><a href="/">← Ir a la página de la barbería</a></p>
   </main>
@@ -135,6 +147,50 @@ router.get('/panel/inicio', requiereSesion, (req, res) => {
   </script>
 </body>
 </html>`);
+});
+
+/** Datos de la agenda de una semana. Solo lee. */
+router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
+  const barberos = messageHandler.barbers;
+
+  const pedido = String(req.query.barbero || '').toLowerCase().trim();
+  const barbero = barberos.find(b => b.toLowerCase() === pedido) || barberos[0];
+
+  const lunes = lunesDeLaSemana(String(req.query.desde || '') || hoyEnBogota());
+
+  try {
+    const { horas, dias } = await armarSemana(barbero, lunes);
+
+    return res.json({
+      ok: true,
+      barbero,
+      barberos,
+      lunes,
+      semanaAnterior: sumarDias(lunes, -7),
+      semanaSiguiente: sumarDias(lunes, 7),
+      rotulo: rotuloSemana(dias),
+      horas,
+      dias,
+    });
+  } catch (error) {
+    // Sheets caído: se dice la verdad en vez de mostrar una semana vacía,
+    // que se vería igual que "no hay nada agendado".
+    const caido = error instanceof SheetsUnavailableError;
+
+    console.error('Panel agenda:', error?.message || error);
+
+    return res.status(caido ? 503 : 500).json({
+      ok: false,
+      error: caido
+        ? 'No puedo consultar la agenda en este momento. Intenta en un minuto.'
+        : 'Algo salió mal al armar la agenda.',
+    });
+  }
+});
+
+/** La pantalla de la agenda. */
+router.get('/panel/agenda', requiereSesion, (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'src', 'views', 'agenda.html'));
 });
 
 export default router;
