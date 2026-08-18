@@ -88,6 +88,74 @@
   text-align: center;
 }
 
+/* Cada paso agrupa lo suyo y mantiene la separacion del formulario. */
+.panel__paso {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* El +57 va fijo al lado: el numero se escribe sin el, que es como se lo
+   sabe la gente. */
+.panel__campo .panel__telefono {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  padding-left: 0.95rem;
+  border: 1px solid rgba(201, 168, 106, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 180ms var(--curva);
+}
+
+.panel__campo .panel__telefono:focus-within { border-color: var(--dorado); }
+
+.panel__campo .panel__prefijo {
+  display: inline-block;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--dorado);
+}
+
+.panel__telefono input {
+  padding-left: 0;
+  border: 0;
+  border-radius: 0 10px 10px 0;
+  background: transparent;
+  letter-spacing: 0.06em;
+}
+
+.panel__telefono input:focus { border-color: transparent; }
+
+/* Cuando el envio rebota por las 24 horas de Meta. No es un error: es el
+   otro camino. */
+.panel__aviso {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid var(--dorado);
+  border-radius: 0 8px 8px 0;
+  background: rgba(201, 168, 106, 0.08);
+  font-size: 0.88rem;
+  color: var(--texto-suave);
+}
+
+.panel__enlace {
+  align-self: center;
+  padding: 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--texto-suave);
+  font-family: var(--cuerpo);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.panel__enlace:hover { color: var(--dorado); }
+
 .panel__enviar {
   justify-content: center;
   margin-top: 0.5rem;

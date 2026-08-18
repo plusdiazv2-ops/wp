@@ -60,7 +60,8 @@ funciona el sistema). Esto es solo el traspaso. Todo está en `master` y despleg
   separados por coma en `ADMIN_PRINCIPAL`.
 - **Tiempo real en el panel → NO.** Se actualiza al volver a la pestaña y cada 30 s
   solo si está visible. Cubre casi todo con mucha menos maquinaria.
-- **Botón al panel en la web pública → NO.** El enlace ya llega con `acceso`.
+- ~~**Botón al panel en la web pública → NO.**~~ Revertido el 17 de agosto: hay botón
+  en la portada y el código se pide desde la web (ver `CLAUDE.md`).
 
 ## 3. Probado y funcionando
 

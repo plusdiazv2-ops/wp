@@ -47,6 +47,23 @@ export function esAdminPrincipal(telefono) {
 }
 
 /**
+ * De lo que escriben en la web al numero completo de WhatsApp.
+ *
+ * En la web se pide el numero SIN el 57, que es como se lo sabe la gente.
+ * Se acepta igual si lo escriben con el 57, que alguno lo va a hacer.
+ *
+ * → "573216981441" o "" si no parece un celular colombiano.
+ */
+export function aNumeroWhatsApp(valor) {
+  const digitos = normalizarTelefono(valor);
+
+  if (/^3\d{9}$/.test(digitos)) return `57${digitos}`;
+  if (/^573\d{9}$/.test(digitos)) return digitos;
+
+  return '';
+}
+
+/**
  * ¿Este número puede entrar al panel?
  *
  * `adminsExtra` son los agregados desde la web (pestaña `admins_web`). Se
@@ -122,6 +139,28 @@ export function verificarCodigo(telefono, codigoRecibido) {
   return { ok: true };
 }
 
+/**
+ * El mensaje del codigo, uno solo para los dos caminos: el que pide `acceso`
+ * por WhatsApp y el que aprieta el boton en la web. Si el texto viviera en
+ * dos sitios, tarde o temprano dirian cosas distintas.
+ */
+export function mensajeCodigo(codigo) {
+  const minutos = Math.round(VIGENCIA_MS / 60000);
+
+  return `🔐 *Acceso al panel*
+
+Tu código es:
+
+*${codigo}*
+
+Válido por ${minutos} minutos y de un solo uso.
+
+Entra a:
+${config.URL_PUBLICA}/panel
+
+Si no fuiste tú quien lo pidió, ignora este mensaje.`;
+}
+
 /** Para las pruebas y para cerrar todo de golpe si hiciera falta. */
 export function olvidarCodigos() {
   pendientes.clear();
@@ -129,4 +168,73 @@ export function olvidarCodigos() {
 
 export function hayCodigoPendiente(telefono) {
   return pendientes.has(normalizarTelefono(telefono));
+}
+
+/**
+ * FRENO DE ENVIOS
+ *
+ * Desde la web cualquiera puede escribir un numero y pedir un codigo. Sin
+ * freno eso serviria para dos cosas malas: probar numeros hasta dar con los
+ * de los admins (la web dice cuando un numero SI esta habilitado), y hacernos
+ * gastar envios de WhatsApp a punta de darle al boton.
+ *
+ * Se cuenta por numero Y por dispositivo: cambiar de numero no reinicia la
+ * cuenta, y cambiar de red tampoco.
+ */
+export const MAX_ENVIOS = 3;
+export const VENTANA_ENVIOS_MS = 10 * 60 * 1000;   // 10 minutos
+
+// clave ("tel:573..." / "ip:1.2.3.4") -> momentos de los ultimos envios
+const envios = new Map();
+
+/** Tira lo viejo para que el mapa no crezca sin parar. */
+function limpiarEnvios(ahora) {
+  for (const [clave, momentos] of envios) {
+    const vivos = momentos.filter(m => ahora - m < VENTANA_ENVIOS_MS);
+
+    if (vivos.length) envios.set(clave, vivos);
+    else envios.delete(clave);
+  }
+}
+
+/**
+ * Pide permiso para mandar un codigo. Si alguna de las claves ya llego al
+ * tope, NO se apunta nada y se dice cuanto falta para poder reintentar.
+ *
+ * → { ok: true } | { ok: false, esperaSegundos }
+ */
+export function permitirEnvio(claves = []) {
+  const ahora = Date.now();
+  limpiarEnvios(ahora);
+
+  const usadas = claves.map(String).filter(Boolean);
+  if (!usadas.length) return { ok: true };
+
+  let esperaMax = 0;
+
+  for (const clave of usadas) {
+    const momentos = envios.get(clave) || [];
+
+    if (momentos.length >= MAX_ENVIOS) {
+      // El mas viejo de la tanda es el que libera el cupo.
+      const libera = momentos[0] + VENTANA_ENVIOS_MS - ahora;
+      esperaMax = Math.max(esperaMax, libera);
+    }
+  }
+
+  if (esperaMax > 0) {
+    return { ok: false, esperaSegundos: Math.max(1, Math.ceil(esperaMax / 1000)) };
+  }
+
+  // Se apunta solo cuando el envio va en serio, y en todas las claves a la vez.
+  for (const clave of usadas) {
+    envios.set(clave, [...(envios.get(clave) || []), ahora]);
+  }
+
+  return { ok: true };
+}
+
+/** Para las pruebas y para levantar el freno a mano si hiciera falta. */
+export function olvidarEnvios() {
+  envios.clear();
 }

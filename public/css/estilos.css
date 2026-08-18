@@ -98,6 +98,42 @@ img { max-width: 100%; display: block; }
   white-space: nowrap;
 }
 
+/* Acceso al panel, arriba a la derecha. Solo lo usan los barberos. */
+.portada__panel {
+  position: absolute;
+  top: 1.4rem;
+  right: 1.25rem;
+  z-index: 6;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgba(201,168,106,0.35);
+  border-radius: 999px;
+
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--dorado);
+  background: rgba(13,11,10,0.35);
+  transition: border-color 0.25s var(--curva), color 0.25s var(--curva), background 0.25s var(--curva);
+}
+
+.portada__panel:hover {
+  border-color: var(--dorado);
+  color: var(--dorado-vivo);
+  background: rgba(201,168,106,0.12);
+}
+
+.portada__panel-icono {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+
 /* Texto gigante de fondo */
 .fantasma {
   position: absolute;
@@ -476,6 +512,13 @@ img { max-width: 100%; display: block; }
 @media (max-width: 640px) {
   .seccion { padding: 4.5rem 1.25rem; }
   .portada { padding: 4.5rem 1.25rem 5rem; }
+  .portada__panel {
+    top: 3.1rem;
+    right: 0.9rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+  }
   .tarjeta-mapa { text-align: center; }
   .tarjeta-mapa__texto { flex-basis: 100%; }
 }

@@ -1,7 +1,16 @@
 import express from 'express';
 import path from 'node:path';
 
-import { verificarCodigo, puedeEntrar, normalizarTelefono } from '../services/accesoPanel.js';
+import {
+  verificarCodigo,
+  puedeEntrar,
+  normalizarTelefono,
+  aNumeroWhatsApp,
+  generarCodigo,
+  mensajeCodigo,
+  permitirEnvio,
+} from '../services/accesoPanel.js';
+import whatsappService from '../services/whatsappService.js';
 import {
   obtenerAdminsWeb,
   obtenerTurnos,
@@ -49,6 +58,89 @@ router.get(['/panel', '/panel/'], (req, res, next) => {
   return next();   // que lo sirva public/panel/index.html
 });
 
+/**
+ * Pedir un código desde la web.
+ *
+ * ⚠️ Meta solo deja escribirle libremente a alguien que nos haya escrito en
+ * las ultimas 24 horas. Aqui el que habla primero es el bot, asi que el envio
+ * puede rebotar. Cuando rebota no se muestra un error: se le devuelve al
+ * barbero un enlace para pedirlo por WhatsApp, que es el camino de siempre y
+ * ademas reabre esa ventana de 24 horas.
+ *
+ * A quien NO esta habilitado se le dice claramente. Eso convierte la pantalla
+ * en una forma de averiguar cuales numeros son admin, y por eso va detras del
+ * freno de envios: 3 intentos cada 10 minutos por numero y por dispositivo.
+ */
+router.post('/panel/api/codigo', async (req, res) => {
+  const telefono = aNumeroWhatsApp(req.body?.telefono);
+
+  if (!telefono) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Escribe tu número de WhatsApp: 10 dígitos, sin el 57.',
+    });
+  }
+
+  const permiso = permitirEnvio([`tel:${telefono}`, `ip:${req.ip || ''}`]);
+
+  if (!permiso.ok) {
+    const minutos = Math.ceil(permiso.esperaSegundos / 60);
+
+    console.log(`🔐 Panel: freno de envíos para ${telefono} desde ${req.ip}`);
+
+    return res.status(429).json({
+      ok: false,
+      error: `Demasiados intentos seguidos. Espera ${minutos} minuto${minutos === 1 ? '' : 's'} e intenta de nuevo.`,
+    });
+  }
+
+  let adminsExtra = [];
+  try {
+    adminsExtra = (await obtenerAdminsWeb()).map(admin => admin.telefono);
+  } catch (error) {
+    console.log('No se pudo leer la lista de admins:', error?.message || error);
+  }
+
+  if (!puedeEntrar(telefono, adminsExtra)) {
+    console.log(`🔐 Panel: código negado a ${telefono}, no está habilitado.`);
+
+    return res.status(403).json({
+      ok: false,
+      error: 'Tu número no está habilitado para este panel.',
+    });
+  }
+
+  const codigo = generarCodigo(telefono);
+
+  try {
+    await whatsappService.sendMessage(telefono, mensajeCodigo(codigo));
+
+    console.log(`🔐 Panel: código enviado a ${telefono} desde la web.`);
+
+    return res.json({ ok: true, mensaje: 'Te llegó un código por WhatsApp.' });
+  } catch (error) {
+    // 131047 y 470 son las dos formas en que Meta dice "pasaron mas de 24
+    // horas". Cualquier otro fallo tambien acaba aqui: el enlace de WhatsApp
+    // sirve igual, y es mejor que dejar al barbero sin salida.
+    const codigoMeta = error?.response?.data?.error?.code;
+    const fueraDeVentana = codigoMeta === 131047 || codigoMeta === 470;
+
+    console.log(
+      `🔐 Panel: no se pudo enviar el código a ${telefono} (Meta ${codigoMeta ?? 'sin código'}). `
+      + 'Se le ofrece pedirlo por WhatsApp.'
+    );
+
+    // 200 a propósito: la petición se atendió bien, lo que cambia es el camino.
+    return res.json({
+      ok: false,
+      motivo: 'pedir_por_whatsapp',
+      aviso: fueraDeVentana
+        ? 'Hace rato que no le escribes al bot, así que WhatsApp no nos deja mandarte el código directo.'
+        : 'No pude enviarte el código por WhatsApp en este momento.',
+    });
+  }
+});
+
 /** Verificar el código y abrir la sesión. */
 router.post('/panel/api/entrar', async (req, res) => {
   const telefono = normalizarTelefono(req.body?.telefono);
@@ -62,7 +154,7 @@ router.post('/panel/api/entrar', async (req, res) => {
 
     return res.status(401).json({
       ok: false,
-      error: 'Número o código incorrecto. Escríbele *acceso* al bot para pedir uno nuevo.',
+      error: 'Número o código incorrecto. Pide un código nuevo e inténtalo otra vez.',
     });
   };
 

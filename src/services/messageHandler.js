@@ -12,7 +12,7 @@ import appendToSheet, {
   SheetsUnavailableError,
 } from './googleSheetsService.js';
 import config from '../config/env.js';
-import { puedeEntrar, generarCodigo, VIGENCIA_MS } from './accesoPanel.js';
+import { puedeEntrar, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
 
 class MessageHandler {
@@ -791,25 +791,10 @@ class MessageHandler {
     }
 
     const codigo = generarCodigo(to);
-    const minutos = Math.round(VIGENCIA_MS / 60000);
 
     console.log(`🔐 Código de panel entregado a ${to}.`);
 
-    await whatsappService.sendMessage(
-      to,
-      `🔐 *Acceso al panel*
-
-Tu código es:
-
-*${codigo}*
-
-Válido por ${minutos} minutos y de un solo uso.
-
-Entra a:
-${config.URL_PUBLICA}/panel
-
-Si no fuiste tú quien lo pidió, ignora este mensaje.`
-    );
+    await whatsappService.sendMessage(to, mensajeCodigo(codigo));
   }
 
   getSenderName(senderInfo) {
