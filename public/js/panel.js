@@ -160,7 +160,7 @@ formulario.addEventListener('submit', async (evento) => {
     const datos = await respuesta.json();
 
     if (datos.ok) {
-      location.href = datos.destino || '/panel/inicio';
+      location.href = datos.destino || '/panel/agenda';
       return;
     }
 

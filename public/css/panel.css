@@ -81,6 +81,30 @@
 
 .panel__campo input::placeholder { color: #6b6359; }
 
+/* Chrome le mete su propio fondo claro a lo que autocompleta o se pega, y el
+   campo queda blanco en medio de la pantalla oscura. No hay forma de apagarlo:
+   se tapa con una sombra interior del color que deberia tener.
+   La transicion larguisima es el truco de siempre para que no se asome el
+   fondo azul un instante antes. */
+.panel__campo input:-webkit-autofill,
+.panel__campo input:-webkit-autofill:hover,
+.panel__campo input:-webkit-autofill:focus,
+.panel__campo input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--texto);
+  -webkit-box-shadow: 0 0 0 100px #171514 inset;
+  box-shadow: 0 0 0 100px #171514 inset;
+  caret-color: var(--texto);
+  transition: background-color 100000s ease-in-out 0s;
+}
+
+/* Lo mismo con el selector estandar. Va en su propia regla a proposito: si un
+   navegador viejo no lo entiende, tumbaria tambien el -webkit- de arriba. */
+.panel__campo input:autofill {
+  -webkit-text-fill-color: var(--texto);
+  box-shadow: 0 0 0 100px #171514 inset;
+  caret-color: var(--texto);
+}
+
 /* El código se lee mejor espaciado */
 .panel__campo input[name="codigo"] {
   letter-spacing: 0.5em;

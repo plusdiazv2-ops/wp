@@ -41,6 +41,12 @@ import {
 
 const router = express.Router();
 
+/**
+ * A donde se entra. La agenda es lo que el admin viene a ver el 99% de las
+ * veces, y desde su menu se llega a Horarios y a Salir.
+ */
+const PANEL_INICIO = '/panel/agenda';
+
 // Solo para los formularios del panel. El webhook manda JSON y no se toca.
 router.use('/panel', express.urlencoded({ extended: false }));
 
@@ -52,7 +58,7 @@ router.use('/panel', express.urlencoded({ extended: false }));
  */
 router.get(['/panel', '/panel/'], (req, res, next) => {
   if (leerSesion(leerCookie(req, NOMBRE_COOKIE))) {
-    return res.redirect('/panel/inicio');
+    return res.redirect(PANEL_INICIO);
   }
 
   return next();   // que lo sirva public/panel/index.html
@@ -176,7 +182,7 @@ router.post('/panel/api/entrar', async (req, res) => {
 
   console.log(`🔐 Panel: entró ${telefono}`);
 
-  return res.json({ ok: true, destino: '/panel/inicio' });
+  return res.json({ ok: true, destino: PANEL_INICIO });
 });
 
 /** Cerrar sesión en este dispositivo. */
@@ -186,69 +192,14 @@ router.post('/panel/api/salir', (req, res) => {
   return res.json({ ok: true, destino: '/panel/' });
 });
 
-/** Adentro. Por ahora solo saluda: las pantallas de verdad son los pasos 3 a 5. */
+/**
+ * Enlace viejo. Aqui vivia una pantalla de "Entraste" con un aviso de que
+ * todavia no habia nada que hacer; la agenda y los horarios ya existen, asi
+ * que ahora manda directo a la agenda. Se conserva la ruta por los enlaces
+ * y los favoritos que quedaron guardados.
+ */
 router.get('/panel/inicio', requiereSesion, (req, res) => {
-  const telefono = req.admin.telefono;
-  const visible = telefono.replace(/^57/, '');
-  const vence = new Date(req.admin.expira).toLocaleDateString('es-CO', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
-
-  res.type('html').send(`<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="noindex" />
-  <title>Panel · Exclusive Barber</title>
-  <link rel="icon" href="/img/logo.jpg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/estilos.css" />
-  <link rel="stylesheet" href="/css/panel.css" />
-</head>
-<body>
-  <div class="grano" aria-hidden="true"></div>
-
-  <main class="panel">
-    <p class="panel__etiqueta">Panel de administración</p>
-    <h1 class="panel__titulo">Entraste</h1>
-
-    <p class="panel__texto">
-      Sesión abierta con el número <strong>${visible}</strong>.<br />
-      Este dispositivo queda recordado hasta el <strong>${vence}</strong>.
-    </p>
-
-    <div class="panel__pendiente">
-      <p><strong>Todavía no hay nada que hacer aquí.</strong></p>
-      <p>Lo que viene:</p>
-      <ul>
-        <li>Ver la agenda de la semana</li>
-        <li>Bloquear y desbloquear horarios</li>
-        <li>Editar los horarios de cada barbero</li>
-      </ul>
-    </div>
-
-    <p><a class="boton-principal" href="/panel/agenda">Ver la agenda</a></p>
-    <p><a class="boton-secundario" href="/panel/horarios">Editar horarios</a></p>
-
-    <button class="boton-secundario" data-salir>Cerrar sesión</button>
-    <p class="panel__volver"><a href="/">← Ir a la página de la barbería</a></p>
-  </main>
-
-  <script>
-    document.querySelector('[data-salir]').addEventListener('click', async () => {
-      const r = await fetch('/panel/api/salir', {
-        method: 'POST',
-        headers: { Accept: 'application/json' },
-      });
-      const datos = await r.json();
-      location.href = datos.destino || '/panel/';
-    });
-  </script>
-</body>
-</html>`);
+  return res.redirect(PANEL_INICIO);
 });
 
 /** Datos de la agenda de una semana. Solo lee. */
