@@ -255,17 +255,35 @@ Hay filas históricas con este problema (ver columna I, mezcla `2026-04-29` con 
 Se descartó React a propósito: habría metido un paso de build y ~200 MB de
 dependencias en la misma app que atiende a los clientes.
 
-**`/panel`** — administración. Se entra sin contraseña:
+**`/panel`** — administración. Se llega con el botón **Panel** de la portada, o
+escribiendo la dirección. Se entra sin contraseña:
 
 ```
-1. El admin le escribe  acceso  al bot
-2. El bot le responde un código de 6 dígitos (5 minutos, un solo uso)
-3. Lo escribe en /panel y entra. Cookie firmada, 30 días
+1. Escribe su número en /panel (10 dígitos, sin el 57) y toca Enviar código
+2. Le llega un código de 6 dígitos por WhatsApp (5 minutos, un solo uso)
+3. Lo escribe ahí mismo y entra. Cookie firmada, 30 días
 ```
 
-Empieza en WhatsApp porque Meta solo deja mandar mensajes libres dentro de las
-24 horas del último del usuario. Como el admin escribe primero, la respuesta es
-gratis y no necesita plantilla aprobada.
+Escribirle **`acceso`** al bot sigue funcionando y da el mismo código. No es
+solo el camino viejo: es el respaldo, y hace falta de verdad — ver abajo.
+
+⚠️ **Meta solo deja mandar mensajes libres dentro de las 24 horas del último
+mensaje del usuario.** Desde la web el que habla primero es el bot, así que si
+el barbero lleva rato sin escribirle, el envío **rebota**. Cuando eso pasa, la
+pantalla no muestra un error: muestra un botón que abre WhatsApp con `acceso`
+ya escrito, que además reabre esa ventana de 24 horas. Por eso el comando no se
+puede quitar. La alternativa sería una plantilla de autenticación aprobada por
+Meta, que cuesta por envío y lleva el texto que Meta imponga.
+
+**Al que no está habilitado se le dice claramente** ("tu número no está
+habilitado para este panel"), a diferencia del bot, que le responde algo
+genérico para no confirmarle a un desconocido que el panel existe. Eso convierte
+la pantalla en una forma de averiguar qué números son admin, y por eso hay un
+freno: **3 intentos cada 10 minutos por número y por dispositivo**, en memoria,
+y va **antes** de mirar si el número está habilitado.
+
+El texto del mensaje del código está en `mensajeCodigo()` (`accesoPanel.js`),
+uno solo para los dos caminos.
 
 | Pantalla | Qué hace |
 |---|---|
