@@ -19,13 +19,20 @@ const {
   olvidarCodigos,
   hayCodigoPendiente,
   MAX_INTENTOS,
+  permitirEnvio,
+  olvidarEnvios,
+  MAX_ENVIOS,
+  VENTANA_ENVIOS_MS,
 } = await import('../src/services/accesoPanel.js');
 
 const YO = '573137127100';
 const BOLON = '573146926477';
 const DESCONOCIDO = '573009998877';
 
-beforeEach(() => olvidarCodigos());
+beforeEach(() => {
+  olvidarCodigos();
+  olvidarEnvios();
+});
 
 describe('quién puede entrar', () => {
   test('el admin principal sale de la variable de entorno', () => {
@@ -144,5 +151,73 @@ describe('el código', () => {
 
     olvidarCodigos();
     assert.equal(hayCodigoPendiente(YO), false);
+  });
+});
+
+describe('el freno de envios', () => {
+  const TEL = `tel:${YO}`;
+  const IP = 'ip:1.2.3.4';
+
+  test('deja pasar los primeros y frena el siguiente', () => {
+    for (let i = 0; i < MAX_ENVIOS; i++) {
+      assert.deepEqual(permitirEnvio([TEL, IP]), { ok: true }, `deberia pasar el ${i + 1}`);
+    }
+
+    const frenado = permitirEnvio([TEL, IP]);
+
+    assert.equal(frenado.ok, false);
+    assert.ok(frenado.esperaSegundos > 0, 'deberia decir cuanto falta');
+  });
+
+  test('cambiar de numero no reinicia la cuenta del dispositivo', () => {
+    for (let i = 0; i < MAX_ENVIOS; i++) permitirEnvio([`tel:5730000000${i}`, IP]);
+
+    assert.equal(permitirEnvio([`tel:${BOLON}`, IP]).ok, false, 'el dispositivo ya gasto sus intentos');
+  });
+
+  test('cambiar de dispositivo no reinicia la cuenta del numero', () => {
+    for (let i = 0; i < MAX_ENVIOS; i++) permitirEnvio([TEL, `ip:9.9.9.${i}`]);
+
+    assert.equal(permitirEnvio([TEL, 'ip:5.5.5.5']).ok, false, 'ese numero ya gasto sus intentos');
+  });
+
+  test('cuando rebota por el numero, al dispositivo no se le gasta nada', () => {
+    // El numero agota sus 3 desde redes distintas.
+    for (let i = 0; i < MAX_ENVIOS; i++) permitirEnvio([TEL, `ip:9.9.9.${i}`]);
+
+    // Esta red esta limpia, pero el intento rebota por el numero.
+    assert.equal(permitirEnvio([TEL, 'ip:8.8.8.8']).ok, false);
+
+    // Y la red se queda con sus 3 completos: el rebote no le conto.
+    for (let i = 0; i < MAX_ENVIOS; i++) {
+      assert.ok(permitirEnvio([`tel:${BOLON}`, 'ip:8.8.8.8']).ok, `deberia pasar el ${i + 1}`);
+    }
+  });
+
+  test('pasados los 10 minutos vuelve a dejar', () => {
+    for (let i = 0; i < MAX_ENVIOS; i++) permitirEnvio([TEL, IP]);
+    assert.equal(permitirEnvio([TEL, IP]).ok, false);
+
+    const ahora = Date.now;
+    Date.now = () => ahora() + VENTANA_ENVIOS_MS + 1000;
+    try {
+      assert.deepEqual(permitirEnvio([TEL, IP]), { ok: true });
+    } finally {
+      Date.now = ahora;
+    }
+  });
+
+  test('sin claves no frena nada (no romper por un dato que falte)', () => {
+    for (let i = 0; i < MAX_ENVIOS + 3; i++) {
+      assert.deepEqual(permitirEnvio([]), { ok: true });
+    }
+  });
+
+  test('olvidarEnvios levanta el freno', () => {
+    for (let i = 0; i < MAX_ENVIOS; i++) permitirEnvio([TEL, IP]);
+    assert.equal(permitirEnvio([TEL, IP]).ok, false);
+
+    olvidarEnvios();
+    assert.deepEqual(permitirEnvio([TEL, IP]), { ok: true });
   });
 });
