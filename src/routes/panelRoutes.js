@@ -154,7 +154,7 @@ router.post('/panel/api/entrar', async (req, res) => {
 
     return res.status(401).json({
       ok: false,
-      error: 'Número o código incorrecto. Escríbele *acceso* al bot para pedir uno nuevo.',
+      error: 'Número o código incorrecto. Pide un código nuevo e inténtalo otra vez.',
     });
   };
 

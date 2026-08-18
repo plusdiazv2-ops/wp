@@ -26,40 +26,70 @@
     <h1 class="panel__titulo">Entrar</h1>
 
     <ol class="panel__pasos">
-      <li>Escríbele <strong>acceso</strong> al bot por WhatsApp.</li>
-      <li>Te responde un código de 6 dígitos.</li>
-      <li>Escríbelo aquí abajo.</li>
+      <li>Escribe tu número de WhatsApp.</li>
+      <li>Te llega un código de <strong>6 dígitos</strong>.</li>
+      <li>Escríbelo aquí y entras.</li>
     </ol>
 
     <form class="panel__form" id="formulario" novalidate>
-      <label class="panel__campo">
-        <span>Tu número de WhatsApp</span>
-        <input
-          type="tel"
-          name="telefono"
-          inputmode="numeric"
-          autocomplete="tel"
-          placeholder="573001112233"
-          required
-        />
-      </label>
 
-      <label class="panel__campo">
-        <span>Código de 6 dígitos</span>
-        <input
-          type="text"
-          name="codigo"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          maxlength="6"
-          placeholder="000000"
-          required
-        />
-      </label>
+      <!-- Paso 1: el número -->
+      <div class="panel__paso" data-paso="numero">
+        <label class="panel__campo">
+          <span>Tu número de WhatsApp</span>
+
+          <span class="panel__telefono">
+            <span class="panel__prefijo">+57</span>
+            <input
+              type="tel"
+              name="telefono"
+              inputmode="numeric"
+              autocomplete="tel-national"
+              maxlength="10"
+              placeholder="3001112233"
+              required
+            />
+          </span>
+        </label>
+
+        <button class="boton-principal panel__enviar" type="button" data-pedir>
+          Enviar código
+        </button>
+      </div>
+
+      <!-- Paso 2: el código -->
+      <div class="panel__paso" data-paso="codigo" hidden>
+        <p class="panel__aviso" id="aviso" hidden></p>
+
+        <a
+          class="boton-secundario panel__enviar"
+          id="por-whatsapp"
+          target="_blank"
+          rel="noopener"
+          hidden
+        >Pedir el código por WhatsApp</a>
+
+        <label class="panel__campo">
+          <span>Código de 6 dígitos</span>
+          <input
+            type="text"
+            name="codigo"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="000000"
+            required
+          />
+        </label>
+
+        <button class="boton-principal panel__enviar" type="submit">Entrar</button>
+
+        <button class="panel__enlace" type="button" data-otro-numero>
+          Usar otro número
+        </button>
+      </div>
 
       <p class="panel__error" id="error" hidden></p>
-
-      <button class="boton-principal panel__enviar" type="submit">Entrar</button>
     </form>
 
     <p class="panel__volver"><a href="/">← Ir a la página de la barbería</a></p>
