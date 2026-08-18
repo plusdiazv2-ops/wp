@@ -47,6 +47,23 @@ export function esAdminPrincipal(telefono) {
 }
 
 /**
+ * De lo que escriben en la web al numero completo de WhatsApp.
+ *
+ * En la web se pide el numero SIN el 57, que es como se lo sabe la gente.
+ * Se acepta igual si lo escriben con el 57, que alguno lo va a hacer.
+ *
+ * → "573216981441" o "" si no parece un celular colombiano.
+ */
+export function aNumeroWhatsApp(valor) {
+  const digitos = normalizarTelefono(valor);
+
+  if (/^3\d{9}$/.test(digitos)) return `57${digitos}`;
+  if (/^573\d{9}$/.test(digitos)) return digitos;
+
+  return '';
+}
+
+/**
  * ¿Este número puede entrar al panel?
  *
  * `adminsExtra` son los agregados desde la web (pestaña `admins_web`). Se
@@ -120,6 +137,28 @@ export function verificarCodigo(telefono, codigoRecibido) {
   // De un solo uso.
   pendientes.delete(numero);
   return { ok: true };
+}
+
+/**
+ * El mensaje del codigo, uno solo para los dos caminos: el que pide `acceso`
+ * por WhatsApp y el que aprieta el boton en la web. Si el texto viviera en
+ * dos sitios, tarde o temprano dirian cosas distintas.
+ */
+export function mensajeCodigo(codigo) {
+  const minutos = Math.round(VIGENCIA_MS / 60000);
+
+  return `🔐 *Acceso al panel*
+
+Tu código es:
+
+*${codigo}*
+
+Válido por ${minutos} minutos y de un solo uso.
+
+Entra a:
+${config.URL_PUBLICA}/panel
+
+Si no fuiste tú quien lo pidió, ignora este mensaje.`;
 }
 
 /** Para las pruebas y para cerrar todo de golpe si hiciera falta. */

@@ -21,6 +21,8 @@ const {
   MAX_INTENTOS,
   permitirEnvio,
   olvidarEnvios,
+  aNumeroWhatsApp,
+  mensajeCodigo,
   MAX_ENVIOS,
   VENTANA_ENVIOS_MS,
 } = await import('../src/services/accesoPanel.js');
@@ -219,5 +221,40 @@ describe('el freno de envios', () => {
 
     olvidarEnvios();
     assert.deepEqual(permitirEnvio([TEL, IP]), { ok: true });
+  });
+});
+
+describe('el numero que se escribe en la web', () => {
+  test('se escribe sin el 57 y se le pega solo', () => {
+    assert.equal(aNumeroWhatsApp('3137127100'), YO);
+  });
+
+  test('tambien vale si lo escriben con el 57 o con adornos', () => {
+    for (const forma of ['573137127100', '+57 313 712 7100', '313-712-7100']) {
+      assert.equal(aNumeroWhatsApp(forma), YO, `fallo con ${forma}`);
+    }
+  });
+
+  test('lo que no sea un celular colombiano se rechaza', () => {
+    for (const malo of ['', null, undefined, 'hola', '12345', '2137127100', '31371271000', '6068801234']) {
+      assert.equal(aNumeroWhatsApp(malo), '', `no deberia aceptar ${JSON.stringify(malo)}`);
+    }
+  });
+});
+
+describe('el mensaje del codigo', () => {
+  test('lleva el codigo, el tiempo que dura y el enlace del panel', () => {
+    const texto = mensajeCodigo('123456');
+
+    assert.match(texto, /\*123456\*/);
+    assert.match(texto, /5 minutos/);
+    assert.match(texto, /\/panel/);
+  });
+
+  test('es el mismo para WhatsApp y para la web', () => {
+    // Un solo texto: si alguien lo duplica, este test no lo ve, pero al menos
+    // deja claro que la funcion es la unica fuente.
+    assert.equal(mensajeCodigo('000111'), mensajeCodigo('000111'));
+    assert.notEqual(mensajeCodigo('000111'), mensajeCodigo('000222'));
   });
 });
