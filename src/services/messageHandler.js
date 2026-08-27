@@ -64,18 +64,23 @@ class MessageHandler {
     ];
 
     // ============================================================
-    // 🧪 BARBERO DE PRUEBA — TEMPORAL
+    // 🧪 BARBERO DE PRUEBA — APAGADO
     // ============================================================
-    // ⚠️ Mientras esto esté en true, los CLIENTES REALES ven "Prueba"
-    //    en la lista de barberos y pueden agendarse con él.
+    // Poner en `true` lo vuelve a encender, y en `false` lo apaga. No
+    // hay que tocar nada más: de aquí cuelga todo lo suyo.
     //
-    // Para quitarlo: poner false. Desaparece de la lista de barberos,
-    // del panel y de los permisos. No hay que tocar nada más.
+    // ⚠️ Mientras esté en true, los CLIENTES REALES ven "Prueba" en la
+    //    lista de barberos y pueden agendarse con él.
     //
-    // Su horario queda en googleSheetsService.js y no estorba: sin
-    // este interruptor nadie puede llegar a él.
+    // Apagado también deja de ser admin: el 573137127100 pierde el panel
+    // del barbero por WhatsApp y el permiso de saltarse el tope de 2
+    // turnos al día. El panel WEB no depende de esto, sale de
+    // ADMIN_PRINCIPAL, así que ese sigue igual.
+    //
+    // Su horario se queda en config/barbers.js y no estorba: sin este
+    // interruptor nadie puede llegar a él.
     // ============================================================
-    this.testBarberEnabled = true;
+    this.testBarberEnabled = false;
 
     if (this.testBarberEnabled) {
       const TEST_PHONE = "573137127100";

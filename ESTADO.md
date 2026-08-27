@@ -72,8 +72,8 @@ variable. **Sin probar:** solo lo que depende de tener las fotos.
 
 ## 4. Pendiente, en orden
 
-1. **Apagar el barbero de prueba** — `testBarberEnabled = false` en el constructor de
-   `messageHandler.js`. Sigue en `true` y los clientes reales lo ven.
+1. ~~**Apagar el barbero de prueba**~~ ✅ Hecho el 26 de agosto de 2026.
+   `testBarberEnabled = false`. Para volver a encenderlo, `true` y desplegar.
 2. **Fotos de los barberos** — cierran la Fase 2. `sendMediaMessage()` ya existe sin
    usar. Van commiteadas a `public/img/` (Railway borra lo que la app escriba).
 3. **Dos avisos en texto plano** — en el paso `time` de `handleAppointmentFlow`

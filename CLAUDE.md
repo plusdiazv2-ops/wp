@@ -92,24 +92,35 @@ Si estuviera en `public/`, cualquiera podría abrirlo saltándose el login.
 `Bolon`, `Julian`, `Ladino` — definidos en `messageHandler.js` (`this.barbers`,
 `this.barberPhones`, `this.barberAdmins`, `this.adminPhones`).
 
-### 🧪 Y un cuarto temporal: `Prueba`
+### 🧪 Y un cuarto, `Prueba`, hoy APAGADO
 
 Barbero de pruebas del desarrollador (`573137127100`). Su contraseña sale de
 `PASSWORD_PRUEBA`, como la de los demás.
-⚠️ **Mientras esté activo los clientes reales lo ven y pueden agendarse con él.**
 
 Todo cuelga de un interruptor en el constructor:
 
 ```js
-this.testBarberEnabled = true;   // ponerlo en false lo quita de todo
+this.testBarberEnabled = false;   // en true vuelve a aparecer en todo
 ```
 
-Su horario está en `config/barbers.js` y puede quedarse ahí aunque se apague:
-si no está en la lista de barberos, nadie llega hasta él.
+**Desde el 26 de agosto de 2026 está en `false`**, que es como debe quedarse
+mientras nadie pida lo contrario: ⚠️ **encendido, los clientes reales lo ven en
+la lista de barberos y pueden agendarse con él.**
 
-Tiene el permiso `canSeeAll`, que **no tienen los demás**: al entrar con su
-contraseña primero escoge de cuál barbero ver la agenda, y dentro del panel gana
-una opción 5 para cambiar de barbero sin salir.
+Apagado, el `573137127100` también **deja de ser admin**: pierde el panel del
+barbero por WhatsApp y el permiso de saltarse el tope de 2 turnos al día. El
+panel **web** no depende de esto (sale de `ADMIN_PRINCIPAL`) y sigue igual.
+
+Su horario está en `config/barbers.js` y puede quedarse ahí aunque esté
+apagado: si no está en la lista de barberos, nadie llega hasta él.
+
+Encendido tiene el permiso `canSeeAll`, que **no tienen los demás**: al entrar
+con su contraseña primero escoge de cuál barbero ver la agenda, y dentro del
+panel gana una opción 5 para cambiar de barbero sin salir.
+
+⚠️ Si quedaron turnos agendados con `Prueba`, apagarlo **no los borra**, pero
+sí los esconde del panel: la lista de barberos del panel sale de aquí. Siguen
+en la hoja, el cliente puede cancelarlos y el recordatorio les llega igual.
 
 ### Dónde viven los horarios
 
