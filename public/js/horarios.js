@@ -105,21 +105,9 @@ function pintar({ barbero, barberos, dias, desdeLaHoja }) {
     + '</div></div>'
   ).join('');
 
-  formulario.innerHTML = filas
-    + '<button type="button" class="horarios__copiar" id="copiar">'
-    + 'Copiar el lunes a los demás días hábiles</button>';
+  formulario.innerHTML = filas;
 
   formulario.querySelectorAll('.dia').forEach(actualizarCuenta);
-
-  $('copiar').addEventListener('click', () => {
-    const lunes = formulario.querySelector('input[data-dia="1"]').value;
-
-    [2, 3, 4, 5, 6].forEach(d => {
-      formulario.querySelector('input[data-dia="' + d + '"]').value = lunes;
-    });
-
-    formulario.querySelectorAll('.dia').forEach(actualizarCuenta);
-  });
 }
 
 formulario.addEventListener('input', e => {
