@@ -1,4 +1,4 @@
-import { esTurnoValido, turnoAMinutos, NOMBRES_DIAS } from '../config/barbers.js';
+import { esTurnoValido, turnoAMinutos, NOMBRES_DIAS, partirEnJornadas } from '../config/barbers.js';
 
 /**
  * Revisa un horario ANTES de guardarlo.
@@ -37,17 +37,24 @@ export function revisarDia(texto, nombreDia) {
   // Repetidos: se quitan en silencio, no es un error del usuario.
   const turnos = [...new Set(crudos)].sort((a, b) => turnoAMinutos(a) - turnoAMinutos(b));
 
-  const manana = turnos.filter(t => turnoAMinutos(t) < 12 * 60);
-  const tarde = turnos.filter(t => turnoAMinutos(t) >= 12 * 60);
+  // Las mismas jornadas que ve el cliente. Si la tarde no cabe entera, se
+  // parte sola en tarde y tarde-noche, y entonces el tope aplica a cada una.
+  const { manana, tarde, tardenoche } = partirEnJornadas(turnos, MAXIMO_POR_JORNADA);
 
   // Si una jornada se pasa, WhatsApp no puede mostrarla completa y el cliente
   // dejaría de ver los últimos turnos sin que nadie se entere.
-  for (const [jornada, lista] of [['la mañana', manana], ['la tarde', tarde]]) {
+  const jornadas = [
+    ['la mañana', manana],
+    ['la tarde', tarde],
+    ['la tarde-noche', tardenoche],
+  ];
+
+  for (const [jornada, lista] of jornadas) {
     if (lista.length > MAXIMO_POR_JORNADA) {
       return {
         error: `${nombreDia}: ${lista.length} turnos en ${jornada}, y en una lista de `
              + `WhatsApp solo caben ${MAXIMO_POR_JORNADA}. Los últimos no se verían. `
-             + `Quita ${lista.length - MAXIMO_POR_JORNADA} o pídeme partir la jornada.`,
+             + `Quita ${lista.length - MAXIMO_POR_JORNADA}.`,
       };
     }
   }

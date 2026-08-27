@@ -14,6 +14,7 @@ import {
   esTurnoValido,
   turnoAMinutos,
   turnosPorDefecto,
+  partirEnJornadas,
 } from '../src/config/barbers.js';
 
 import { interpretarFilasDeHorario } from '../src/services/googleSheetsService.js';
@@ -80,15 +81,18 @@ describe('horarios por defecto', () => {
     }
   });
 
-  test('Bolon: miércoles solo tarde, y termina 5:30pm', () => {
+  test('Bolon: miércoles solo tarde, y termina 6:30pm', () => {
     const miercoles = turnosPorDefecto('bolon', MIERCOLES);
     const lunes = turnosPorDefecto('bolon', LUNES);
 
-    assert.equal(miercoles.length, 8);
+    assert.equal(miercoles.length, 10);
     assert.equal(miercoles[0], '1:30pm');
     assert.ok(miercoles.every(t => turnoAMinutos(t) >= 12 * 60), 'el miércoles no debería tener mañana');
-    assert.equal(lunes.at(-1), '5:30pm');
-    assert.equal(miercoles.at(-1), '5:30pm');
+
+    // Refuerzo temporal de agosto de 2026: antes cerraba a las 5:30pm.
+    assert.equal(lunes.at(-1), '6:30pm');
+    assert.equal(miercoles.at(-1), '6:30pm');
+    assert.ok(lunes.includes('6:00pm'), 'falta el turno de las 6:00pm');
   });
 
   test('Julian: martes hasta 4:40pm, resto hasta 5:20pm, miércoles corto', () => {
@@ -136,15 +140,36 @@ describe('horarios por defecto', () => {
 
   test('ninguna jornada pasa de 8 turnos, que es el tope de una lista de WhatsApp', () => {
     // Una lista admite 10 filas y 2 se van en Volver y Menú principal.
+    // Se miden las jornadas TAL COMO las ve el cliente: si la tarde no cabe
+    // entera, se parte sola en tarde y tarde-noche.
     for (const [barbero, semana] of Object.entries(HORARIOS_POR_DEFECTO)) {
       semana.forEach((turnos, dia) => {
-        const manana = turnos.filter(t => turnoAMinutos(t) < 12 * 60);
-        const tarde = turnos.filter(t => turnoAMinutos(t) >= 12 * 60);
+        const jornadas = partirEnJornadas(turnos, 8);
 
-        assert.ok(manana.length <= 8, `${barbero} ${NOMBRES_DIAS[dia]}: ${manana.length} turnos en la mañana, no caben`);
-        assert.ok(tarde.length <= 8, `${barbero} ${NOMBRES_DIAS[dia]}: ${tarde.length} turnos en la tarde, no caben`);
+        for (const [nombre, lista] of Object.entries(jornadas)) {
+          assert.ok(
+            lista.length <= 8,
+            `${barbero} ${NOMBRES_DIAS[dia]}: ${lista.length} turnos en ${nombre}, no caben`
+          );
+        }
       });
     }
+  });
+
+  test('a Bolon la tarde se le parte en dos; a Julian y Ladino no', () => {
+    const bolon = partirEnJornadas(turnosPorDefecto('bolon', LUNES), 8);
+    const julian = partirEnJornadas(turnosPorDefecto('julian', LUNES), 8);
+    const ladino = partirEnJornadas(turnosPorDefecto('ladino', LUNES), 8);
+
+    // Bolon: 10 turnos de tarde no caben en una lista, se separan.
+    assert.deepEqual(bolon.tardenoche, ['5:00pm', '5:30pm', '6:00pm', '6:30pm']);
+    assert.equal(bolon.tarde.at(-1), '4:25pm');
+
+    // Los otros dos caben enteros: siguen viendo dos jornadas, como siempre.
+    assert.deepEqual(julian.tardenoche, [], 'Julian no debería partirse');
+    assert.deepEqual(ladino.tardenoche, [], 'Ladino no debería partirse');
+    assert.ok(julian.tarde.includes('5:20pm'), 'el 5:20pm de Julian sigue en la tarde');
+    assert.equal(ladino.tarde.length, 6, 'Ladino sigue con sus 6 turnos en una sola jornada');
   });
 });
 

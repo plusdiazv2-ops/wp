@@ -22,8 +22,12 @@ export const NOMBRES_DIAS = [
 ];
 
 // ── Bolon ─ cada 35 min ───────────────────────────────────────────────
+// Los dos ultimos, 6:00pm y 6:30pm, son un refuerzo TEMPORAL que pidio Bolon
+// en agosto de 2026. Para volver a la normalidad se quitan de esta lista (y
+// de la pestana `horarios` de la hoja, que manda sobre esto).
 const BOLON_TARDE = [
-  "1:30pm", "2:05pm", "2:40pm", "3:15pm", "3:50pm", "4:25pm", "5:00pm", "5:30pm"
+  "1:30pm", "2:05pm", "2:40pm", "3:15pm", "3:50pm", "4:25pm", "5:00pm", "5:30pm",
+  "6:00pm", "6:30pm"
 ];
 const BOLON_COMPLETO = [
   "9am", "9:35am", "10:10am", "10:45am", "11:20am", "11:55am", ...BOLON_TARDE
@@ -61,6 +65,44 @@ export const HORARIOS_POR_DEFECTO = {
 
 /** Formato exacto que acepta la columna C: 9am, 10:45am, 1:30pm */
 export const FORMATO_TURNO = /^(\d{1,2})(?::(\d{2}))?(am|pm)$/;
+
+/** Donde corta cada jornada, en minutos desde medianoche. */
+export const CORTE_TARDE = 12 * 60;         // 12:00pm
+export const CORTE_TARDE_NOCHE = 17 * 60;   // 5:00pm
+
+/**
+ * Reparte los turnos de un dia en jornadas: manana, tarde y tarde-noche.
+ *
+ * ⚠️ La tercera jornada NO existe porque si: existe solo porque una lista de
+ * WhatsApp no admite mas de `maximoPorLista` turnos. Si la tarde entera cabe
+ * en una lista, no se parte y el cliente ve las dos jornadas de siempre.
+ *
+ * Hoy solo le hace falta a Bolon, que atiende hasta las 6:30pm. Julian y
+ * Ladino caben de sobra y por eso no ven ningun cambio.
+ *
+ * Vive aqui, y no en messageHandler, porque el panel necesita la misma regla
+ * para saber si un horario cabe antes de guardarlo. Cuando esto estuvo en dos
+ * sitios, uno se quedo viejo y el cliente y el barbero vieron cosas distintas.
+ */
+export function partirEnJornadas(turnos, maximoPorLista = 8) {
+  const manana = [];
+  const tarde = [];
+  const tardenoche = [];
+
+  (turnos || []).forEach(turno => {
+    const minutos = turnoAMinutos(turno);
+
+    if (minutos < CORTE_TARDE) manana.push(turno);
+    else if (minutos < CORTE_TARDE_NOCHE) tarde.push(turno);
+    else tardenoche.push(turno);
+  });
+
+  if (tarde.length + tardenoche.length <= maximoPorLista) {
+    return { manana, tarde: [...tarde, ...tardenoche], tardenoche: [] };
+  }
+
+  return { manana, tarde, tardenoche };
+}
 
 /** Minutos desde medianoche. -1 si el turno no se entiende o es imposible. */
 export function turnoAMinutos(turno) {

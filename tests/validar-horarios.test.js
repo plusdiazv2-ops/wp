@@ -82,9 +82,14 @@ describe('lo que NO debe llegar a la hoja', () => {
 });
 
 describe('el tope de una lista de WhatsApp', () => {
+  // Turnos de mediodía en adelante, cada 30 min: 12:00pm, 12:30pm, 1:00pm...
+  // Todos caen ANTES de las 5pm, así que se cuentan en la misma jornada.
   const tarde = n => Array.from({ length: n }, (_, i) => {
-    const h = 1 + Math.floor(i / 2);
-    return i % 2 === 0 ? `${h}:00pm` : `${h}:30pm`;
+    const minutos = 12 * 60 + i * 30;
+    const h24 = Math.floor(minutos / 60);
+    const h = h24 > 12 ? h24 - 12 : h24;
+
+    return minutos % 60 === 0 ? `${h}:00pm` : `${h}:30pm`;
   }).join(', ');
 
   test(`${MAXIMO_POR_JORNADA} turnos en una jornada todavía caben`, () => {
@@ -97,6 +102,24 @@ describe('el tope de una lista de WhatsApp', () => {
     assert.ok(r.error);
     assert.match(r.error, /tarde/);
     assert.match(r.error, /WhatsApp/);
+  });
+
+  test('10 turnos de tarde SÍ caben si se reparten con la tarde-noche', () => {
+    // El caso real de Bolon: 1:30pm a 6:30pm. Seis antes de las 5 y cuatro
+    // después, así que cada lista cabe y el panel debe dejar guardarlo.
+    const bolon = '1:30pm, 2:05pm, 2:40pm, 3:15pm, 3:50pm, 4:25pm, 5:00pm, 5:30pm, 6:00pm, 6:30pm';
+    const r = revisarDia(bolon, 'Miércoles');
+
+    assert.ok(r.turnos, r.error);
+    assert.equal(r.turnos.length, 10);
+  });
+
+  test('nueve en la tarde-noche no caben, aunque la tarde esté vacía', () => {
+    const noche = '5:00pm, 5:30pm, 6:00pm, 6:30pm, 7:00pm, 7:30pm, 8:00pm, 8:30pm, 9:00pm';
+    const r = revisarDia(noche, 'Lunes');
+
+    assert.ok(r.error);
+    assert.match(r.error, /tarde-noche/);
   });
 
   test('mañana y tarde se cuentan por separado', () => {
