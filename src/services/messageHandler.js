@@ -12,6 +12,7 @@ import appendToSheet, {
   SheetsUnavailableError,
 } from './googleSheetsService.js';
 import config from '../config/env.js';
+import { partirEnJornadas } from '../config/barbers.js';
 import { puedeEntrar, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
 
@@ -255,6 +256,7 @@ class MessageHandler {
         if (state.periodSlots) {
           state.step = 'jornada';
           state.availableSlots = state.allSlots;
+          delete state.periodo;
           this.resetError(to);
           await this.sendPeriodOptions(to, state);
           return true;
@@ -1101,6 +1103,7 @@ Si necesitas cancelar tu turno:
         // salta: el cliente ve todo de una y se ahorra un toque.
         if (availableSlots.length <= this.listLimits.rows - 2) {
           delete state.periodSlots;
+          delete state.periodo;
           state.availableSlots = availableSlots;
           state.step = 'time';
 
@@ -1143,6 +1146,10 @@ Si necesitas cancelar tu turno:
 
         this.resetError(to);
         state.availableSlots = periods[choice.index].slots;
+        // Se recuerda cuál jornada eligió: la lista de horas ya viene filtrada
+        // y volver a partirla daría un encabezado equivocado (las 4 horas de
+        // tarde-noche, solas, caben en una lista y se leerían como "tarde").
+        state.periodo = periods[choice.index].label;
         state.step = 'time';
 
         await this.sendTimeOptions(to, state);
@@ -1507,22 +1514,10 @@ Si necesitas cancelar tu turno:
    * se rompe: el miércoles Julian hace jornada corta seguida, sin almuerzo,
    * y ahí no hay dónde cortar. Las 12:00 además es como lo piensa el cliente.
    */
+  // La regla vive en config/barbers.js: el panel necesita la misma para saber
+  // si un horario cabe antes de guardarlo.
   splitSlotsByPeriod(slots) {
-    const manana = [];
-    const tarde = [];
-
-    (slots || []).forEach(slot => {
-      const parsed = this.parseTime(slot);
-      const minutes = parsed ? parsed.hour * 60 + parsed.minutes : 0;
-
-      if (minutes < 12 * 60) {
-        manana.push(slot);
-      } else {
-        tarde.push(slot);
-      }
-    });
-
-    return { manana, tarde };
+    return partirEnJornadas(slots, this.listLimits.rows - 2);
   }
 
   // Solo las jornadas que tienen turnos, en orden. El número escrito y el
@@ -1531,6 +1526,7 @@ Si necesitas cancelar tu turno:
     return [
       { value: 'manana', label: '☀️ Mañana', slots: state.periodSlots?.manana || [] },
       { value: 'tarde', label: '🌤️ Tarde', slots: state.periodSlots?.tarde || [] },
+      { value: 'tardenoche', label: '🌙 Tarde-noche', slots: state.periodSlots?.tardenoche || [] },
     ].filter(period => period.slots.length > 0);
   }
 
@@ -1539,8 +1535,8 @@ Si necesitas cancelar tu turno:
 
     const disponibles = this.periodOptions(state);
 
-    // Se informa de las dos jornadas, pero solo se muestra botón de las que
-    // tienen cupos: WhatsApp no tiene botones deshabilitados, así que un
+    // Se informa de las jornadas aunque estén sin cupos, pero solo se ofrece
+    // la que tiene: WhatsApp no tiene botones deshabilitados, así que un
     // botón de "Tarde (sin cupos)" sería un callejón sin salida.
     const linea = (label, slots) => {
       if (slots.length === 0) return `${label} — ❌ sin turnos`;
@@ -1551,28 +1547,71 @@ Si necesitas cancelar tu turno:
       return `${numero}. ${label} — ${turnos}`;
     };
 
-    const body = customBody || `🕐 ¿A qué hora prefieres?
+    const lineas = [
+      linea('☀️ Mañana', state.periodSlots.manana),
+      linea('🌤️ Tarde', state.periodSlots.tarde),
+    ];
+
+    // La tercera jornada solo se nombra cuando existe. Si la tarde cabe
+    // entera en una lista no se parte, y mencionarla sobraría.
+    if (state.periodSlots.tardenoche.length) {
+      lineas.push(linea('🌙 Tarde-noche', state.periodSlots.tardenoche));
+    }
+
+    const resumen = customBody || `🕐 ¿A qué hora prefieres?
 
 Para *${state.displayDate}* con *${state.barber}*:
 
-${linea('☀️ Mañana', state.periodSlots.manana)}
-${linea('🌤️ Tarde', state.periodSlots.tarde)}
+${lineas.join(String.fromCharCode(10))}`;
 
-${disponibles.length + 1}. ⬅️ Volver`;
+    // Con dos jornadas caben los botones de siempre. Con tres no: Meta solo
+    // admite 3 botones y el de Volver sería el cuarto, así que va como lista.
+    if (disponibles.length <= 2) {
+      const buttons = disponibles.map(period => ({
+        type: 'reply',
+        reply: { id: `jornada_${period.value}`, title: period.label },
+      }));
 
-    const buttons = disponibles.map(period => ({
-      type: 'reply',
-      reply: { id: `jornada_${period.value}`, title: period.label },
-    }));
+      buttons.push({ type: 'reply', reply: { id: 'nav_volver', title: '⬅️ Volver' } });
 
-    buttons.push({ type: 'reply', reply: { id: 'nav_volver', title: '⬅️ Volver' } });
+      await whatsappService.sendInteractiveButtons(
+        to,
+        `${resumen}
 
-    await whatsappService.sendInteractiveButtons(to, body, buttons);
+${disponibles.length + 1}. ⬅️ Volver`,
+        buttons
+      );
+      return;
+    }
+
+    await this.sendOptionList(to, {
+      body: resumen,
+      buttonText: 'Elegir jornada',
+      sections: [
+        {
+          title: 'JORNADAS',
+          rows: disponibles.map((period, index) => ({
+            id: `jornada_${period.value}`,
+            title: `${index + 1}. ${period.label}`,
+            description: period.slots.length === 1
+              ? '1 turno disponible'
+              : `${period.slots.length} turnos disponibles`,
+          })),
+        },
+        {
+          title: 'MÁS OPCIONES',
+          rows: [
+            { id: 'nav_volver', title: `${disponibles.length + 1}. ⬅️ Volver` },
+            { id: 'nav_menu', title: `${disponibles.length + 2}. 🏠 Menú principal`, optional: true },
+          ],
+        },
+      ],
+      footer: 'También puedes escribir el número',
+    });
   }
 
   async sendTimeOptions(to, state, customBody = null) {
     const slots = state.availableSlots || [];
-    const { manana, tarde } = this.splitSlotsByPeriod(slots);
 
     // La numeración corre seguida entre secciones, para que el número escrito
     // coincida con lo que se ve.
@@ -1584,11 +1623,23 @@ ${disponibles.length + 1}. ⬅️ Volver`;
 
     const sections = [];
 
-    const filasManana = armarFilas(manana);
-    if (filasManana.length) sections.push({ title: '☀️ MAÑANA', rows: filasManana });
+    if (state.periodo) {
+      // Viene de la pantalla de jornadas: estas horas son todas de esa
+      // jornada, y volver a partirlas titularía mal (las de tarde-noche,
+      // solas, caben en una lista y se leerían como "tarde").
+      sections.push({ title: state.periodo.toUpperCase(), rows: armarFilas(slots) });
+    } else {
+      const { manana, tarde, tardenoche } = this.splitSlotsByPeriod(slots);
 
-    const filasTarde = armarFilas(tarde);
-    if (filasTarde.length) sections.push({ title: '🌤️ TARDE', rows: filasTarde });
+      const filasManana = armarFilas(manana);
+      if (filasManana.length) sections.push({ title: '☀️ MAÑANA', rows: filasManana });
+
+      const filasTarde = armarFilas(tarde);
+      if (filasTarde.length) sections.push({ title: '🌤️ TARDE', rows: filasTarde });
+
+      const filasNoche = armarFilas(tardenoche);
+      if (filasNoche.length) sections.push({ title: '🌙 TARDE-NOCHE', rows: filasNoche });
+    }
 
     sections.push({
       title: 'MÁS OPCIONES',
