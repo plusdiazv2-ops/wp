@@ -156,6 +156,31 @@ describe('horarios por defecto', () => {
     }
   });
 
+  test('la tarde se parte según el horario del día, no según lo que quede libre', () => {
+    const todos = turnosPorDefecto('bolon', LUNES);
+
+    // Dos turnos de tarde ya tomados: quedan 8 libres, que SÍ caben en una
+    // lista. Sin la referencia se fusionaban y el bloque desaparecía, así que
+    // el cliente veía una pantalla distinta según cuánta gente hubiera
+    // agendado ese día.
+    const libres = todos.filter(t => !['1:30pm', '2:05pm'].includes(t));
+
+    const conReferencia = partirEnJornadas(libres, 8, todos);
+    assert.deepEqual(conReferencia.tardenoche, ['5:00pm', '5:30pm', '6:00pm', '6:30pm']);
+
+    // Y con la tarde casi vacía sigue igual: manda el horario del día.
+    const casiVacio = partirEnJornadas(['6:00pm'], 8, todos);
+    assert.deepEqual(casiVacio.tardenoche, ['6:00pm']);
+    assert.deepEqual(casiVacio.tarde, []);
+  });
+
+  test('a un barbero que sí cabe, la referencia no le parte nada', () => {
+    const todos = turnosPorDefecto('julian', LUNES);
+
+    assert.deepEqual(partirEnJornadas(['5:20pm'], 8, todos).tardenoche, []);
+    assert.deepEqual(partirEnJornadas(['5:20pm'], 8, todos).tarde, ['5:20pm']);
+  });
+
   test('a Bolon la tarde se le parte en dos; a Julian y Ladino no', () => {
     const bolon = partirEnJornadas(turnosPorDefecto('bolon', LUNES), 8);
     const julian = partirEnJornadas(turnosPorDefecto('julian', LUNES), 8);

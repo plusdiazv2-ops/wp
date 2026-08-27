@@ -28,15 +28,43 @@ const mostrar = (id, texto) => {
   nodo.hidden = !texto;
 };
 
+const MAXIMO_POR_JORNADA = 8;   // una lista son 10 filas, 2 se van en Volver y Menú
+
+/**
+ * ⚠️ ESPEJO de `partirEnJornadas()` en src/config/barbers.js.
+ *
+ * El navegador no puede importar del servidor, así que la regla está escrita
+ * dos veces. Si cambias una, cambia la otra: cuando se descuadraron, el panel
+ * pintaba en rojo horarios que el servidor guardaba sin problema.
+ *
+ * La tarde se parte en tarde (hasta las 5pm) y tarde-noche SOLO si no cabe
+ * entera en una lista.
+ */
+function algunaJornadaSePasa(turnos) {
+  const enRango = (desde, hasta) => turnos.filter(t => {
+    const m = aMinutos(t);
+    return m >= desde && m < hasta;
+  }).length;
+
+  const manana = enRango(0, 720);
+  const tarde = enRango(720, 1020);
+  const tardenoche = enRango(1020, 24 * 60);
+
+  if (manana > MAXIMO_POR_JORNADA) return true;
+
+  // Si la tarde entera cabe, no se parte y se mide de una.
+  if (tarde + tardenoche <= MAXIMO_POR_JORNADA) return false;
+
+  return tarde > MAXIMO_POR_JORNADA || tardenoche > MAXIMO_POR_JORNADA;
+}
+
 /** Cuenta los turnos del día y avisa si una jornada no va a caber. */
 function actualizarCuenta(fila) {
   const entrada = fila.querySelector('input');
   const cuenta = fila.querySelector('.dia__cuenta');
 
   const turnos = entrada.value.split(',').map(t => t.trim()).filter(Boolean);
-  const manana = turnos.filter(t => aMinutos(t) >= 0 && aMinutos(t) < 720).length;
-  const tarde = turnos.filter(t => aMinutos(t) >= 720).length;
-  const sePasa = manana > 8 || tarde > 8;
+  const sePasa = algunaJornadaSePasa(turnos);
 
   cuenta.textContent = turnos.length === 0
     ? 'descansa'
