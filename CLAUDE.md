@@ -129,10 +129,8 @@ puede decir una cosa y la pestaña otra — y gana la pestaña. Y hay un caché 
 5 minutos (que el panel limpia solo al guardar, pero editar la hoja a mano no).
 
 Reglas por barbero (resumen — la fuente de verdad es el código):
-- **Bolon:** miércoles solo tarde; resto del día completo. **Sí tiene turnos el domingo**
-  en el código (a diferencia de los otros dos); al cliente no le aparece porque las
-  fechas ofrecidas saltan los domingos, pero el panel de Bolon sí muestra agenda ese día.
-  El último turno de la mañana es **11:55am** y el primero de la tarde **1:30pm**
+- **Bolon:** miércoles solo tarde; resto del día completo. Domingo vacío, igual que
+  los otros dos. El último turno de la mañana es **11:55am** y el primero de la tarde **1:30pm**
   (o sea: 11:55am sí se ofrece; el almuerzo empieza después de ese turno).
   🕕 **Refuerzo temporal (agosto 2026):** cierra a las **6:30pm**, no a las 5:30pm.
   Son dos turnos de más, `6:00pm` y `6:30pm`, todos los días menos domingo. Para
@@ -178,12 +176,22 @@ mañana y tarde en sentido de secciones dentro de una misma lista.
 **Y hay una tercera jornada, 🌙 Tarde-noche, que tampoco aparece siempre.** La tarde
 se parte a las **5pm** solo cuando no cabe entera en una lista. Hoy únicamente le pasa
 a Bolon, que tiene 10 turnos de tarde; Julian y Ladino caben de sobra y siguen viendo
-dos jornadas con botones, exactamente igual que antes. Cuando son tres, la pantalla se
+dos jornadas con botones, exactamente igual que antes.
+
+⚠️ **La decisión se toma con el horario COMPLETO del día, no con los turnos libres.**
+Al revés —que fue como salió la primera vez— el bloque aparecía y desaparecía según
+cuánta gente hubiera agendado: con dos turnos tomados los 8 restantes volvían a caber
+y se fusionaban. Por eso `sendPeriodOptions` guarda `state.slotsDelDia`. Cuando son tres, la pantalla se
 manda como **lista**: Meta admite 3 botones y el de Volver sería el cuarto.
 
 ⚠️ **La regla de reparto está en `config/barbers.js` (`partirEnJornadas`), no en
 `messageHandler`.** El panel la necesita igual para saber si un horario cabe antes de
 guardarlo. Tenerla en dos sitios es exactamente lo que rompió los horarios en su día.
+
+Y hay **un espejo inevitable**: `public/js/horarios.js` la repite para pintar el aviso
+en rojo mientras el barbero escribe, porque el navegador no puede importar del
+servidor. Si cambias una, cambia la otra — ya pasó que el panel marcaba en rojo un
+horario que el servidor guardaba sin problema.
 
 ⚠️ **Tope de 10 filas por lista.** Pasarse hace que Meta rechace el mensaje entero y
 el cliente **no recibe nada** — no es que se vea feo, es que no llega. Por eso toda
@@ -216,6 +224,15 @@ menu para empezar de nuevo"* y pone el contador en cero — pero ⚠️ **no res
 el cliente sigue parado exactamente en el mismo paso. Además ese contador solo está
 conectado en los pasos **barbero, fecha y hora**; no existe en el paso del nombre, ni en
 el flujo de cancelación, ni en el panel del barbero.
+
+**Qué días se le ofrecen al cliente:** los 7 próximos en los que el barbero **tenga
+turnos configurados**. Un día con la jornada vacía es la forma de decir "no trabajo",
+y se salta. **El domingo no es especial**: si un barbero le pone horario, se ofrece.
+Antes estaba saltado a la fuerza y no había manera de abrir un domingo.
+
+Si a un barbero se le vacían los **siete** días, no hay ninguna fecha que mostrar: se
+le avisa al cliente y se le devuelve a la lista de barberos. La búsqueda de fechas
+tiene un tope de 30 días por delante, o una semana vacía dejaría el bucle girando.
 
 **Límite:** máximo 2 turnos por día por número de teléfono. Los números de los
 barberos (`adminPhones`) no tienen límite.

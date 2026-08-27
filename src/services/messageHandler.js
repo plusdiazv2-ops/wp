@@ -9,6 +9,7 @@ import appendToSheet, {
   getAppointmentsByBarberAndDate,
   getDailyScheduleByBarber,
   obtenerAdminsWeb,
+  obtenerTurnos,
   SheetsUnavailableError,
 } from './googleSheetsService.js';
 import config from '../config/env.js';
@@ -1098,6 +1099,14 @@ Si necesitas cancelar tu turno:
 
         state.allSlots = availableSlots;
 
+        // El horario COMPLETO de ese día, no solo lo que queda libre: es lo
+        // que decide si la tarde se parte en dos. Si dependiera de lo libre,
+        // el bloque de tarde-noche aparecería un día y al otro no.
+        state.slotsDelDia = await obtenerTurnos(
+          state.barber,
+          new Date(`${state.date}T00:00:00`).getDay()
+        );
+
         // La pantalla de jornada existe solo porque los turnos no caben en una
         // lista (tope 10 filas, menos 2 de navegación). Si caben todos, se
         // salta: el cliente ve todo de una y se ahorra un toque.
@@ -1395,30 +1404,38 @@ Si necesitas cancelar tu turno:
       new Date().toLocaleString("en-US", { timeZone: "America/Bogota" })
     );
 
+    // Antes aquí se saltaba el domingo a la fuerza. Eso dejaba fuera al
+    // barbero que sí quisiera trabajar un domingo: por más que le pusiera
+    // horario en el panel, al cliente nunca le aparecía la fecha.
+    //
+    // Ahora manda el horario: se ofrece el día en que el barbero tiene
+    // turnos, y se salta el que tiene la jornada vacía. Dejarla vacía es la
+    // forma de decir "ese día no trabajo", y vale para cualquier día.
+    //
+    // El tope de 30 vueltas es un seguro: sin él, un barbero con la semana
+    // entera vacía dejaría este bucle girando para siempre y tumbaría el bot.
     let i = 0;
-    while (dates.length < 7) {
+    while (dates.length < 7 && i < 30) {
       const current = new Date(now);
       current.setDate(now.getDate() + i);
-
-      const day = current.getDay();
-
-      if (day !== 0) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const dayOfMonth = String(current.getDate()).padStart(2, '0');
-        const isoDate = `${year}-${month}-${dayOfMonth}`;
-
-        const slots = await getAvailableSlots(barber, isoDate);
-
-        dates.push({
-          value: isoDate,
-          label: this.formatDisplayDate(isoDate),
-          hasAvailability: slots.length > 0,
-          availableCount: slots.length
-        });
-      }
-
       i++;
+
+      const jornada = await obtenerTurnos(barber, current.getDay());
+      if (jornada.length === 0) continue;
+
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const dayOfMonth = String(current.getDate()).padStart(2, '0');
+      const isoDate = `${year}-${month}-${dayOfMonth}`;
+
+      const slots = await getAvailableSlots(barber, isoDate);
+
+      dates.push({
+        value: isoDate,
+        label: this.formatDisplayDate(isoDate),
+        hasAvailability: slots.length > 0,
+        availableCount: slots.length
+      });
     }
 
     return dates;
@@ -1475,6 +1492,24 @@ Si necesitas cancelar tu turno:
     const nextDates = state.availableDates;
     const total = nextDates.length;
 
+    // Sin ninguna fecha no hay lista que armar. Pasa si a un barbero le
+    // vacían los siete días en el panel: antes era imposible, ahora que un
+    // día vacío significa "no trabajo" sí se puede llegar aquí.
+    if (total === 0) {
+      state.step = 'barber';
+      delete state.availableDates;
+
+      await whatsappService.sendMessage(
+        to,
+        `😕 *${state.barber}* no tiene días de atención configurados.
+
+Elige otro barbero:`
+      );
+
+      await this.sendBarberOptions(to);
+      return;
+    }
+
     const rows = nextDates.map((date, index) => {
       const turnos = date.availableCount === 1
         ? '1 turno libre'
@@ -1516,8 +1551,8 @@ Si necesitas cancelar tu turno:
    */
   // La regla vive en config/barbers.js: el panel necesita la misma para saber
   // si un horario cabe antes de guardarlo.
-  splitSlotsByPeriod(slots) {
-    return partirEnJornadas(slots, this.listLimits.rows - 2);
+  splitSlotsByPeriod(slots, horarioDelDia = null) {
+    return partirEnJornadas(slots, this.listLimits.rows - 2, horarioDelDia);
   }
 
   // Solo las jornadas que tienen turnos, en orden. El número escrito y el
@@ -1531,7 +1566,7 @@ Si necesitas cancelar tu turno:
   }
 
   async sendPeriodOptions(to, state, customBody = null) {
-    state.periodSlots = this.splitSlotsByPeriod(state.allSlots);
+    state.periodSlots = this.splitSlotsByPeriod(state.allSlots, state.slotsDelDia);
 
     const disponibles = this.periodOptions(state);
 
@@ -1629,7 +1664,7 @@ ${disponibles.length + 1}. ⬅️ Volver`,
       // solas, caben en una lista y se leerían como "tarde").
       sections.push({ title: state.periodo.toUpperCase(), rows: armarFilas(slots) });
     } else {
-      const { manana, tarde, tardenoche } = this.splitSlotsByPeriod(slots);
+      const { manana, tarde, tardenoche } = this.splitSlotsByPeriod(slots, state.slotsDelDia);
 
       const filasManana = armarFilas(manana);
       if (filasManana.length) sections.push({ title: '☀️ MAÑANA', rows: filasManana });

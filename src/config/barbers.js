@@ -84,24 +84,41 @@ export const CORTE_TARDE_NOCHE = 17 * 60;   // 5:00pm
  * para saber si un horario cabe antes de guardarlo. Cuando esto estuvo en dos
  * sitios, uno se quedo viejo y el cliente y el barbero vieron cosas distintas.
  */
-export function partirEnJornadas(turnos, maximoPorLista = 8) {
-  const manana = [];
-  const tarde = [];
-  const tardenoche = [];
+export function partirEnJornadas(turnos, maximoPorLista = 8, referencia = null) {
+  const repartir = (lista) => {
+    const manana = [];
+    const tarde = [];
+    const tardenoche = [];
 
-  (turnos || []).forEach(turno => {
-    const minutos = turnoAMinutos(turno);
+    (lista || []).forEach(turno => {
+      const minutos = turnoAMinutos(turno);
 
-    if (minutos < CORTE_TARDE) manana.push(turno);
-    else if (minutos < CORTE_TARDE_NOCHE) tarde.push(turno);
-    else tardenoche.push(turno);
-  });
+      if (minutos < CORTE_TARDE) manana.push(turno);
+      else if (minutos < CORTE_TARDE_NOCHE) tarde.push(turno);
+      else tardenoche.push(turno);
+    });
 
-  if (tarde.length + tardenoche.length <= maximoPorLista) {
-    return { manana, tarde: [...tarde, ...tardenoche], tardenoche: [] };
+    return { manana, tarde, tardenoche };
+  };
+
+  const reparto = repartir(turnos);
+
+  // ⚠️ La decisión se toma sobre `referencia` —el horario COMPLETO del día—
+  // y no sobre los turnos que quedan libres. Si dependiera de los libres, el
+  // bloque de tarde-noche aparecería y desaparecería según cuánta gente haya
+  // agendado ese día: con dos turnos tomados los 8 restantes vuelven a caber
+  // y se fusionaban. El cliente veía una pantalla distinta cada día.
+  const base = referencia ? repartir(referencia) : reparto;
+
+  if (base.tarde.length + base.tardenoche.length <= maximoPorLista) {
+    return {
+      manana: reparto.manana,
+      tarde: [...reparto.tarde, ...reparto.tardenoche],
+      tardenoche: [],
+    };
   }
 
-  return { manana, tarde, tardenoche };
+  return reparto;
 }
 
 /** Minutos desde medianoche. -1 si el turno no se entiende o es imposible. */
