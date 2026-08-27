@@ -134,6 +134,10 @@ Reglas por barbero (resumen — la fuente de verdad es el código):
   fechas ofrecidas saltan los domingos, pero el panel de Bolon sí muestra agenda ese día.
   El último turno de la mañana es **11:55am** y el primero de la tarde **1:30pm**
   (o sea: 11:55am sí se ofrece; el almuerzo empieza después de ese turno).
+  🕕 **Refuerzo temporal (agosto 2026):** cierra a las **6:30pm**, no a las 5:30pm.
+  Son dos turnos de más, `6:00pm` y `6:30pm`, todos los días menos domingo. Para
+  volver a la normalidad se quitan de `BOLON_TARDE` **y de la pestaña `horarios`**.
+  Es lo que obligó a partir la tarde en dos jornadas (ver abajo).
 - **Julian:** no trabaja domingos; martes hasta 4:40pm; resto hasta 5:20pm.
   El miércoles trabaja jornada corta — **hasta la 1:00pm**, no "solo mañana":
   la lista incluye 12:20pm y 1:00pm.
@@ -165,11 +169,21 @@ convención de siempre se conserva.
 | Menú principal | Botones (3) |
 | Nombre | Texto libre |
 | Barbero · Fecha · Hora · Cancelar · Panel | **Lista** |
-| Jornada · Confirmar cancelación | Botones |
+| Jornada · Confirmar cancelación | Botones (jornada pasa a **lista** si hay 3) |
 
 **El paso de jornada (Mañana/Tarde) no siempre aparece.** Existe solo porque los
 turnos no caben en una lista. Si caben todos (8 o menos), se salta y el cliente ve
 mañana y tarde en sentido de secciones dentro de una misma lista.
+
+**Y hay una tercera jornada, 🌙 Tarde-noche, que tampoco aparece siempre.** La tarde
+se parte a las **5pm** solo cuando no cabe entera en una lista. Hoy únicamente le pasa
+a Bolon, que tiene 10 turnos de tarde; Julian y Ladino caben de sobra y siguen viendo
+dos jornadas con botones, exactamente igual que antes. Cuando son tres, la pantalla se
+manda como **lista**: Meta admite 3 botones y el de Volver sería el cuarto.
+
+⚠️ **La regla de reparto está en `config/barbers.js` (`partirEnJornadas`), no en
+`messageHandler`.** El panel la necesita igual para saber si un horario cabe antes de
+guardarlo. Tenerla en dos sitios es exactamente lo que rompió los horarios en su día.
 
 ⚠️ **Tope de 10 filas por lista.** Pasarse hace que Meta rechace el mensaje entero y
 el cliente **no recibe nada** — no es que se vea feo, es que no llega. Por eso toda
