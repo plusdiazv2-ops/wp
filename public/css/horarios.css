@@ -101,20 +101,6 @@
 
 .dia--cambiado input { border-color: rgba(201, 168, 106, 0.7); }
 
-.horarios__copiar {
-  align-self: flex-start;
-  margin-top: 0.25rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px dashed rgba(201, 168, 106, 0.4);
-  border-radius: 999px;
-  background: none;
-  color: var(--texto-suave);
-  font-family: var(--cuerpo);
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-.horarios__copiar:hover { color: var(--dorado); border-color: var(--dorado); }
-
 .horarios__acciones {
   display: flex;
   gap: 0.9rem;
