@@ -23,7 +23,7 @@ class MessageHandler {
     this.assistantState = {};
     this.cancelState = {};
     this.barberAdminState = {};
-    this.barbers = ["Bolon", "Julian", "Ladino"];
+    this.barbers = ["Bolon", "Julian"];
     // ⚠️ Las contraseñas ya NO viven aquí: vienen de las variables de
     // Railway. Este archivo se subió como código fuente al trabajo de la
     // universidad y las llevaba escritas en texto plano.
@@ -44,24 +44,49 @@ class MessageHandler {
         password: config.PASSWORD_JULIAN
       },
 
-      "573215342867": {
-        name: "Ladino",
-        barber: "ladino",
-        password: config.PASSWORD_LADINO
-      },
-
     };
     this.errorCount = {};
     this.barberPhones = {
       Bolon: "573146926477",
-      Julian: "573002730493",
-      Ladino: "573215342867"
+      Julian: "573002730493"
     };
     this.adminPhones = [
       "573146926477",
-      "573002730493",
-      "573215342867"
+      "573002730493"
     ];
+
+    // ============================================================
+    // 💈 LADINO — RETIRADO
+    // ============================================================
+    // Se retiró el 9 de septiembre de 2026, de común acuerdo: cambiaba
+    // mucho de turno y no lograba sostener una agenda fija.
+    //
+    // Poner esto en `true` lo devuelve a TODO de una vez: lista de
+    // barberos, panel web, panel de barbero por WhatsApp y permisos.
+    // No hay que tocar nada más — igual que el barbero de prueba.
+    //
+    // Su horario sigue en config/barbers.js y sus filas siguen en la
+    // pestaña `horarios`. No estorban: si no está en la lista de
+    // barberos, nadie llega hasta él.
+    //
+    // ⚠️ Sus turnos históricos NO se tocan. Siguen en la hoja con su
+    // nombre en la columna F, que es como debe quedar.
+    // ============================================================
+    this.ladinoActivo = false;
+
+    if (this.ladinoActivo) {
+      const LADINO_PHONE = "573215342867";
+
+      this.barbers.push("Ladino");
+      this.barberPhones.Ladino = LADINO_PHONE;
+      this.adminPhones.push(LADINO_PHONE);
+
+      this.barberAdmins[LADINO_PHONE] = {
+        name: "Ladino",
+        barber: "ladino",
+        password: config.PASSWORD_LADINO
+      };
+    }
 
     // ============================================================
     // 🧪 BARBERO DE PRUEBA — APAGADO

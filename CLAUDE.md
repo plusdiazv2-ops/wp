@@ -89,8 +89,35 @@ Si estuviera en `public/`, cualquiera podría abrirlo saltándose el login.
 
 ## Los barberos
 
-`Bolon`, `Julian`, `Ladino` — definidos en `messageHandler.js` (`this.barbers`,
-`this.barberPhones`, `this.barberAdmins`, `this.adminPhones`).
+**Activos hoy: `Bolon` y `Julian`** — definidos en `messageHandler.js`
+(`this.barbers`, `this.barberPhones`, `this.barberAdmins`, `this.adminPhones`).
+
+### 💈 `Ladino`, RETIRADO desde el 9 de septiembre de 2026
+
+Se retiró de común acuerdo: cambiaba mucho de turno y no lograba sostener una
+agenda fija. **No tenía turnos pendientes** cuando se apagó.
+
+Cuelga de un interruptor en el constructor, igual que el barbero de prueba:
+
+```js
+this.ladinoActivo = false;   // en true vuelve a aparecer en todo
+```
+
+Encendido vuelve entero: lista de barberos, panel web, panel de barbero por
+WhatsApp y permisos de admin. No hay que tocar nada más.
+
+Lo que **se dejó a propósito** por si regresa: su horario en `config/barbers.js`,
+sus filas en la pestaña `horarios` y la variable `PASSWORD_LADINO` en Railway.
+Nada de eso estorba: si no está en la lista de barberos, nadie llega hasta él.
+
+⚠️ **Sus turnos históricos no se tocaron.** Siguen en la hoja con `Ladino` en la
+columna F, que es como debe quedar. Lo que sí desaparece del panel es su agenda:
+la lista de barberos del panel sale de `this.barbers`.
+
+⚠️ **Si algún día entra un barbero nuevo, NO reutilices esta entrada ni le
+cambies el nombre a Ladino.** El nombre es lo que se guarda en cada turno: al
+renombrarlo, todos los turnos históricos de Ladino pasarían a verse como del
+barbero nuevo. Un barbero nuevo es una entrada nueva.
 
 ### 🧪 Y un cuarto, `Prueba`, hoy APAGADO
 
@@ -150,10 +177,10 @@ Reglas por barbero (resumen — la fuente de verdad es el código):
 - **Julian:** no trabaja domingos; martes hasta 4:40pm; resto hasta 5:20pm.
   El miércoles trabaja jornada corta — **hasta la 1:00pm**, no "solo mañana":
   la lista incluye 12:20pm y 1:00pm.
-- **Ladino:** no trabaja domingos. Desde el **10 de agosto de 2026 atiende solo de
-  noche**: de 6:00pm a 8:30pm, cada 30 min (el último termina a las 9pm). Antes hacía
-  jornada completa de 10:30am a 6:20pm cada 40 min — puede haber turnos históricos en
-  ese horario viejo.
+- **Ladino (retirado):** su horario sigue en el código por si vuelve — solo de
+  noche, de 6:00pm a 8:30pm cada 30 min, desde el 10 de agosto de 2026. Antes hacía
+  jornada completa de 10:30am a 6:20pm cada 40 min, así que puede haber turnos
+  históricos en ese horario viejo. **Hoy no se le ofrece a nadie.**
 
 ## Flujo del cliente
 
@@ -186,7 +213,7 @@ mañana y tarde en sentido de secciones dentro de una misma lista.
 
 **Y hay una tercera jornada, 🌙 Tarde-noche, que tampoco aparece siempre.** La tarde
 se parte a las **5pm** solo cuando no cabe entera en una lista. Hoy únicamente le pasa
-a Bolon, que tiene 10 turnos de tarde; Julian y Ladino caben de sobra y siguen viendo
+a Bolon, que tiene 10 turnos de tarde; Julian cabe de sobra y sigue viendo
 dos jornadas con botones, exactamente igual que antes.
 
 ⚠️ **La decisión se toma con el horario COMPLETO del día, no con los turnos libres.**
