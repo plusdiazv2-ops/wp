@@ -14,6 +14,7 @@ import appendToSheet, {
 } from './googleSheetsService.js';
 import config from '../config/env.js';
 import { partirEnJornadas } from '../config/barbers.js';
+import { remitenteDe, telefonoVisible } from '../config/contacto.js';
 import { puedeEntrar, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
 
@@ -563,7 +564,7 @@ class MessageHandler {
       // la barbería estaba llena. Un solo sitio para decir la verdad.
       console.error('⚠️', error.message);
 
-      const to = message?.from;
+      const to = remitenteDe(message, senderInfo);
       if (!to) return;
 
       await whatsappService.sendMessage(
@@ -576,7 +577,7 @@ class MessageHandler {
   async procesarMensaje(message, senderInfo) {
     if (message?.type === 'text') {
       const incomingMessage = this.normalizeText(message.text.body);
-      const to = message.from;
+      const to = remitenteDe(message, senderInfo);
 
       if (incomingMessage === 'menu') {
         this.clearAllStates(to);
@@ -683,7 +684,7 @@ class MessageHandler {
       await whatsappService.markAsRead(message.id);
 
     } else if (message?.type === 'interactive') {
-      const to = message.from;
+      const to = remitenteDe(message, senderInfo);
       const option = this.getInteractiveId(message);
 
       // Sin id no se puede hacer nada, y dejarlo pasar rompía el panel del
@@ -768,7 +769,7 @@ class MessageHandler {
       await whatsappService.markAsRead(message.id);
 
     } else if (
-      message?.from &&
+      remitenteDe(message, senderInfo) &&
       message?.type &&
       message.type !== 'reaction' &&
       message.type !== 'system'
@@ -778,7 +779,7 @@ class MessageHandler {
       // quedaba esperando una respuesta que nunca llegaba.
       // Las reacciones y los avisos del sistema se ignoran a propósito:
       // no son una pregunta del cliente.
-      const to = message.from;
+      const to = remitenteDe(message, senderInfo);
 
       const hasActiveFlow =
         this.appointmentState[to] ||
@@ -831,7 +832,13 @@ class MessageHandler {
   }
 
   getSenderName(senderInfo) {
-    const fullName = senderInfo?.profile?.name || senderInfo?.wa_id || "Cliente";
+    // `username` es el nombre de usuario de quien escondió su número. Va
+    // antes que el identificador: nunca se le saluda a nadie con un código.
+    const fullName = senderInfo?.profile?.name
+      || senderInfo?.profile?.username
+      || senderInfo?.wa_id
+      || "Cliente";
+
     return fullName.split(' ')[0];
   }
 
@@ -1825,7 +1832,9 @@ Te recordamos tu turno en *Exclusive Barber* 💈
           appointment.barber || "Barbero",                       // {{2}} Barbero
           appointment.displayDate || appointment.date || "Fecha", // {{3}} Fecha
           appointment.time || "Hora",                            // {{4}} Hora
-          appointment.phone || "Teléfono"                        // {{5}} Teléfono
+          // Quien escondió su número no tiene teléfono que mostrar: se le
+          // dice al barbero con todas las letras, no con el código interno.
+          telefonoVisible(appointment.phone) || "Teléfono"       // {{5}} Teléfono
         ]
       );
 
@@ -2015,7 +2024,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
     appointments.forEach((appointment, index) => {
       message += `${index + 1}. ${appointment.time} - ${appointment.name}\n`;
-      message += `📱 ${appointment.phone.replace(/^57/, '')}\n\n`;
+      message += `📱 ${telefonoVisible(appointment.phone)}\n\n`;
     });
 
     return message.trim();
@@ -2105,7 +2114,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
     schedule.forEach(item => {
       if (item.status === 'ocupado') {
         message += `🔴 ${item.time} - ${item.name}\n`;
-        message += `📱 ${item.phone.replace(/^57/, '')}\n\n`;
+        message += `📱 ${telefonoVisible(item.phone)}\n\n`;
       } else {
         message += `🟢 ${item.time} - Libre\n`;
       }
