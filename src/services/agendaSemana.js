@@ -1,5 +1,6 @@
 import { getDailyScheduleByBarber } from './googleSheetsService.js';
 import { turnoAMinutos, NOMBRES_DIAS } from '../config/barbers.js';
+import { telefonoVisible } from '../config/contacto.js';
 import { NOMBRE_BLOQUEO } from './googleSheetsService.js';
 
 /**
@@ -115,7 +116,7 @@ export async function armarSemana(barbero, lunesISO, hoyISO = hoyEnBogota(), { f
         // aparte para que el panel lo pinte distinto y deje liberarlo.
         bloqueado: turno.status === 'ocupado' && esBloqueo,
         nombre: turno.name || '',
-        telefono: (turno.phone || '').replace(/^57/, ''),
+        telefono: telefonoVisible(turno.phone),
       };
     }
   }
