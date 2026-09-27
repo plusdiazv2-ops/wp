@@ -303,7 +303,7 @@ Muestra 🟢 libre / 🔴 ocupado con nombre y teléfono del cliente (sin el 57)
 | B | Día visible | `Sábado 2 de mayo` | solo para mostrar |
 | C | Hora | `9am`, `10:45am`, `1:30pm` | ⚠️ formato exacto, se compara con `===` |
 | D | Nombre | texto | |
-| E | Teléfono | `573146926477` | con código de país, sin `+` |
+| E | Teléfono | `573146926477` | con código de país, sin `+`. Puede traer un **código de usuario** (`CO.1429…`) si el cliente escondió su número |
 | F | Barbero | `Bolon` | se compara en minúsculas |
 | G | Estado | `Confirmado` / `Cancelado` | solo `Confirmado` ocupa el slot |
 | H | Fecha registro | ISO | timestamp de creación |
@@ -432,6 +432,41 @@ atrasada de golpe (de ahí la defensa 3).
 
 La URL va en: Meta → tu app → WhatsApp → **Configuración** → *URL de devolución de
 llamada*, y termina en `/webhook`.
+
+## Clientes que esconden su número
+
+Desde 2026 WhatsApp deja activar un **nombre de usuario**, y quien lo hace
+oculta su teléfono. Meta entonces **no manda `from` ni `wa_id`**: manda un
+código propio de este negocio (un *BSUID*) con la forma `CO.1429929462353188`,
+en `messages[].from_user_id` y `contacts[].user_id`.
+
+⚠️ **Ya rompió el bot** (26 de septiembre de 2026): un cliente escribió tres
+veces y nunca recibió nada. El bot leía solo `from`, respondía a `undefined`
+y Meta devolvía *"The parameter to is required"*. Nadie se enteró — ni el
+cliente, ni la barbería.
+
+Todo lo de esto vive en **`src/config/contacto.js`**:
+
+- **`remitenteDe(mensaje, contacto)`** mira las cuatro fuentes en orden:
+  `from` → `from_user_id` → `wa_id` → `user_id`. ⚠️ **El teléfono va primero
+  a propósito:** Meta ya manda `user_id` también a los clientes de siempre, y
+  preferirlo dejaría de reconocer sus turnos históricos.
+- **`esUsuarioSinNumero(id)`** — un teléfono son solo dígitos; lo demás es un
+  código de usuario.
+- **`telefonoVisible(id)`** — lo que ve un humano: el teléfono sin el 57, o
+  `sin número (usuario de WhatsApp)`.
+
+⚠️ **Al enviar, Meta exige `recipient` y NO acepta el código en `to`.** Y si
+van los dos campos, **gana `to`** y rechaza el envío igual. Por eso la
+traducción está en `sendToWhatsApp.js`, que es por donde pasan **todos** los
+envíos: así ninguno se puede escapar, ni los de hoy ni los que se agreguen.
+
+El código se guarda en la **columna E** como si fuera el teléfono. Es estable
+por persona, así que agendar, cancelar y los recordatorios funcionan igual.
+Lo que no se puede es llamar a ese cliente: solo responderle por el chat.
+
+Documentación de Meta:
+https://developers.facebook.com/documentation/business-messaging/whatsapp/business-scoped-user-ids/
 
 ## Zona horaria
 
