@@ -66,6 +66,36 @@ export const HORARIOS_POR_DEFECTO = {
 /** Formato exacto que acepta la columna C: 9am, 10:45am, 1:30pm */
 export const FORMATO_TURNO = /^(\d{1,2})(?::(\d{2}))?(am|pm)$/;
 
+/**
+ * CÓMO SE LLAMA CADA BARBERO PARA LA GENTE
+ *
+ * ⚠️ El nombre del barbero NO es solo una etiqueta: es el identificador. Se
+ * guarda en la columna F de cada turno y se compara con él para saber si una
+ * hora está ocupada. Cambiarlo de verdad obligaría a migrar todo el
+ * histórico de la hoja, y una migración a medias hace que los turnos ya
+ * vendidos se vean libres.
+ *
+ * Por eso aquí se separan las dos cosas: por dentro se sigue llamando igual
+ * que siempre, y esto es solo cómo se le muestra a una persona.
+ *
+ * Para cambiarle el nombre visible a alguien, basta con una línea aquí.
+ */
+export const NOMBRES_VISIBLES = {
+  Julian: 'Juli',
+};
+
+/** El nombre como lo ve un cliente o un barbero. */
+export function nombreVisible(barbero) {
+  const nombre = String(barbero ?? '').trim();
+  if (!nombre) return '';
+
+  // Sin distinguir mayúsculas: en la hoja hay filas viejas en minúscula.
+  const clave = Object.keys(NOMBRES_VISIBLES)
+    .find(k => k.toLowerCase() === nombre.toLowerCase());
+
+  return clave ? NOMBRES_VISIBLES[clave] : nombre;
+}
+
 /** Donde corta cada jornada, en minutos desde medianoche. */
 export const CORTE_TARDE = 12 * 60;         // 12:00pm
 export const CORTE_TARDE_NOCHE = 17 * 60;   // 5:00pm
