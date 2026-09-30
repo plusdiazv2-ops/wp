@@ -13,7 +13,7 @@ import appendToSheet, {
   SheetsUnavailableError,
 } from './googleSheetsService.js';
 import config from '../config/env.js';
-import { partirEnJornadas } from '../config/barbers.js';
+import { partirEnJornadas, nombreVisible } from '../config/barbers.js';
 import { remitenteDe, telefonoVisible } from '../config/contacto.js';
 import { puedeEntrar, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
@@ -601,7 +601,7 @@ class MessageHandler {
 
         await whatsappService.sendMessage(
           to,
-          `💈 Bienvenido ${admin.name}`
+          `💈 Bienvenido ${nombreVisible(admin.name)}`
         );
 
         // 👑 Quien puede ver todos los paneles escoge primero de cuál barbero.
@@ -973,7 +973,7 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
     return `✅ *¡Turno confirmado!*
 
 👤 *Nombre:* ${appointment.name}
-💈 *Barbero:* ${appointment.barber}
+💈 *Barbero:* ${nombreVisible(appointment.barber)}
 📅 *Fecha:* ${appointment.displayDate}
 ⏰ *Hora:* ${appointment.time}
 
@@ -1354,7 +1354,7 @@ Si necesitas cancelar tu turno:
         await whatsappService.sendMessage(
           to,
           `✅ Turno cancelado:\n\n` +
-          `💈 ${appt.barber}\n` +
+          `💈 ${nombreVisible(appt.barber)}\n` +
           `📅 ${appt.displayDate}\n` +
           `⏰ ${appt.time}`
         );
@@ -1483,7 +1483,7 @@ Si necesitas cancelar tu turno:
   barberOptions() {
     return this.barbers.map(barber => ({
       value: barber.toLowerCase(),
-      label: barber,
+      label: nombreVisible(barber),
     }));
   }
 
@@ -1538,7 +1538,7 @@ Si necesitas cancelar tu turno:
 
       await whatsappService.sendMessage(
         to,
-        `😕 *${state.barber}* no tiene días de atención configurados.
+        `😕 *${nombreVisible(state.barber)}* no tiene días de atención configurados.
 
 Elige otro barbero:`
       );
@@ -1563,7 +1563,7 @@ Elige otro barbero:`
 
     await this.sendOptionList(to, {
       body: customBody
-        || `✅ Perfecto, *${state.name}*.\nHas elegido a *${state.barber}* 💈\n\n📅 Selecciona una fecha disponible:`,
+        || `✅ Perfecto, *${state.name}*.\nHas elegido a *${nombreVisible(state.barber)}* 💈\n\n📅 Selecciona una fecha disponible:`,
       buttonText: 'Elegir fecha',
       sections: [
         { title: 'PRÓXIMOS DÍAS', rows },
@@ -1632,7 +1632,7 @@ Elige otro barbero:`
 
     const resumen = customBody || `🕐 ¿A qué hora prefieres?
 
-Para *${state.displayDate}* con *${state.barber}*:
+Para *${state.displayDate}* con *${nombreVisible(state.barber)}*:
 
 ${lineas.join(String.fromCharCode(10))}`;
 
@@ -1723,7 +1723,7 @@ ${disponibles.length + 1}. ⬅️ Volver`,
 
     await this.sendOptionList(to, {
       body: customBody
-        || `⏰ Horarios disponibles con *${state.barber}* para *${state.displayDate}*:`,
+        || `⏰ Horarios disponibles con *${nombreVisible(state.barber)}* para *${state.displayDate}*:`,
       buttonText: 'Elegir hora',
       sections,
       footer: 'También puedes escribir el número',
@@ -1743,7 +1743,7 @@ ${disponibles.length + 1}. ⬅️ Volver`,
           rows: appointments.map((appointment, index) => ({
             id: `cancelar_${appointment.rowNumber}`,
             title: `${index + 1}. ${this.formatShortDate(appointment.date)} · ${appointment.time}`,
-            description: `${appointment.displayDate} · 💈 ${appointment.barber}`,
+            description: `${appointment.displayDate} · 💈 ${nombreVisible(appointment.barber)}`,
           })),
         },
         {
@@ -1762,7 +1762,7 @@ ${disponibles.length + 1}. ⬅️ Volver`,
     const body = `📋 *Confirma la cancelación:*
 
 👤 ${appointment.name}
-💈 ${appointment.barber}
+💈 ${nombreVisible(appointment.barber)}
 📅 ${appointment.displayDate}
 ⏰ ${appointment.time}
 
@@ -1829,7 +1829,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
         "nuevo_turno_barbero",
         [
           appointment.name || "Cliente",                         // {{1}} Cliente
-          appointment.barber || "Barbero",                       // {{2}} Barbero
+          nombreVisible(appointment.barber) || "Barbero",        // {{2}} Barbero
           appointment.displayDate || appointment.date || "Fecha", // {{3}} Fecha
           appointment.time || "Hora",                            // {{4}} Hora
           // Quien escondió su número no tiene teléfono que mostrar: se le
@@ -2017,10 +2017,10 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
   formatAppointmentsList(appointments, barberName, label) {
     if (!appointments.length) {
-      return `💈 ${barberName}, no tienes turnos ${label}.`;
+      return `💈 ${nombreVisible(barberName)}, no tienes turnos ${label}.`;
     }
 
-    let message = `💈 Turnos de ${barberName} ${label}:\n\n`;
+    let message = `💈 Turnos de ${nombreVisible(barberName)} ${label}:\n\n`;
 
     appointments.forEach((appointment, index) => {
       message += `${index + 1}. ${appointment.time} - ${appointment.name}\n`;
@@ -2074,8 +2074,8 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
     await this.sendOptionList(to, {
       body: admin?.canSeeAll
-        ? `💈 Panel ${barberName}\n👑 Entraste como *${admin.name}*`
-        : `💈 Panel ${barberName}`,
+        ? `💈 Panel ${nombreVisible(barberName)}\n👑 Entraste como *${nombreVisible(admin.name)}*`
+        : `💈 Panel ${nombreVisible(barberName)}`,
       buttonText: 'Ver opciones',
       sections: [
         {
@@ -2106,10 +2106,10 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
   formatDailySchedule(schedule, barberName, label) {
     if (!schedule.length) {
-      return `💈 Agenda ${barberName} - ${label}\n\nNo hay horarios configurados para este día.`;
+      return `💈 Agenda ${nombreVisible(barberName)} - ${label}\n\nNo hay horarios configurados para este día.`;
     }
 
-    let message = `💈 Agenda ${barberName} - ${label}\n\n`;
+    let message = `💈 Agenda ${nombreVisible(barberName)} - ${label}\n\n`;
 
     schedule.forEach(item => {
       if (item.status === 'ocupado') {

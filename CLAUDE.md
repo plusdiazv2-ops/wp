@@ -92,6 +92,37 @@ Si estuviera en `public/`, cualquiera podría abrirlo saltándose el login.
 **Activos hoy: `Bolon` y `Julian`** — definidos en `messageHandler.js`
 (`this.barbers`, `this.barberPhones`, `this.barberAdmins`, `this.adminPhones`).
 
+### 🏷️ El nombre que se ve NO es el mismo que el que se guarda
+
+⚠️ **El nombre del barbero es el identificador.** Se guarda en la columna F de
+cada turno y se compara con él para saber si una hora está ocupada. Es también
+la llave de su teléfono y de su fila en la pestaña `horarios`. **Cambiarlo de
+verdad obliga a migrar todo el histórico de la hoja**, y una migración a medias
+hace que los turnos ya vendidos se vean libres: el peor fallo posible aquí.
+
+Por eso desde el **29 de septiembre de 2026** están separadas las dos cosas, en
+`config/barbers.js`:
+
+```js
+export const NOMBRES_VISIBLES = { Julian: 'Juli' };
+```
+
+- `nombreVisible(barbero)` devuelve el nombre para la gente. Ignora mayúsculas,
+  porque en la hoja hay filas viejas en minúscula.
+- **Por dentro sigue siendo `Julian`**: la columna F, el id del botón
+  (`barbero_julian`), `barberPhones`, la pestaña `horarios` y `PASSWORD_JULIAN`.
+  Nada de eso se tocó.
+
+Se aplica en **todo lo que lee una persona**: la lista de barberos, las
+pantallas de fecha y hora, la confirmación, el flujo de cancelar, el panel del
+barbero por WhatsApp y la plantilla de turno nuevo. **No** se aplica en los
+`console.log`, que a propósito muestran el nombre interno.
+
+**Para cambiarle el nombre visible a otro barbero basta con una línea ahí.**
+
+⚠️ **Lo que sigue diciendo `Julian`:** la hoja de cálculo y el selector de
+barberos del panel web. Es a propósito — son la vista de lo que hay guardado.
+
 ### 💈 `Ladino`, RETIRADO desde el 9 de septiembre de 2026
 
 Se retiró de común acuerdo: cambiaba mucho de turno y no lograba sostener una
