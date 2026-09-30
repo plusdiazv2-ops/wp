@@ -6,6 +6,12 @@ const formulario = $('formulario');
 let original = {};      // lo que había al cargar, para poder deshacer
 let barberoActual = '';
 
+// Cómo se llama cada barbero para la gente. Lo manda el servidor, para no
+// repetir aquí una regla que ya vive en config/barbers.js.
+let nombresVisibles = {};
+
+const comoSeLlama = (barbero) => nombresVisibles[barbero] || barbero;
+
 const HORA = /^(\d{1,2})(?::(\d{2}))?(am|pm)$/;
 
 const aMinutos = (t) => {
@@ -79,12 +85,17 @@ function actualizarCuenta(fila) {
   fila.classList.toggle('dia--cambiado', !sinCambios);
 }
 
-function pintar({ barbero, barberos, dias, desdeLaHoja }) {
+function pintar({ barbero, barberos, dias, desdeLaHoja, nombres }) {
   barberoActual = barbero;
+  nombresVisibles = nombres || {};
 
   const select = $('barbero');
   if (select.options.length !== barberos.length) {
-    select.innerHTML = barberos.map(b => '<option value="' + b + '">' + b + '</option>').join('');
+    // ⚠️ El `value` es el nombre INTERNO: es con el que el servidor guarda.
+    // Solo cambia el texto que se lee.
+    select.innerHTML = barberos
+      .map(b => '<option value="' + b + '">' + comoSeLlama(b) + '</option>')
+      .join('');
   }
   select.value = barbero;
 
@@ -167,7 +178,7 @@ $('guardar').addEventListener('click', async (evento) => {
     return;
   }
 
-  const pregunta = '¿Guardar los horarios de ' + barberoActual + '?\n\n'
+  const pregunta = '¿Guardar los horarios de ' + comoSeLlama(barberoActual) + '?\n\n'
     + 'Cambian ' + cambios.length + ' día(s). Los clientes lo van a ver de inmediato.';
 
   if (!confirm(pregunta)) return;
@@ -192,7 +203,7 @@ $('guardar').addEventListener('click', async (evento) => {
       return;
     }
 
-    mostrar('ok', 'Listo. Los horarios de ' + barberoActual + ' quedaron guardados.');
+    mostrar('ok', 'Listo. Los horarios de ' + comoSeLlama(barberoActual) + ' quedaron guardados.');
     await cargar();
   } catch {
     mostrar('error', 'No se pudo conectar. Revisa tu internet.');
