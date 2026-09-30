@@ -78,12 +78,22 @@ async function cargar({ fresco = false, deFondo = false } = {}) {
   pintarTabla(datos);
 }
 
-function pintarSelector({ barberos, barbero }) {
+// Cómo se llama cada barbero para la gente. Lo manda el servidor, para no
+// repetir aquí una regla que ya vive en config/barbers.js.
+let nombresVisibles = {};
+
+const comoSeLlama = (barbero) => nombresVisibles[barbero] || barbero;
+
+function pintarSelector({ barberos, barbero, nombres }) {
+  nombresVisibles = nombres || {};
+
   const select = $('barbero');
   if (select.options.length === barberos.length) { select.value = barbero; return; }
 
+  // ⚠️ El `value` es el nombre INTERNO: es lo que se guarda en la hoja y con
+  // lo que el servidor busca los turnos. Solo cambia lo que se lee.
   select.innerHTML = barberos
-    .map(b => `<option value="${b}"${b === barbero ? ' selected' : ''}>${b}</option>`)
+    .map(b => `<option value="${b}"${b === barbero ? ' selected' : ''}>${comoSeLlama(b)}</option>`)
     .join('');
 }
 

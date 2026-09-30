@@ -20,7 +20,7 @@ import {
   horariosDeBarbero,
 } from '../services/googleSheetsService.js';
 import { requiereSesion } from '../middlewares/requiereSesion.js';
-import { esTurnoValido, NOMBRES_DIAS } from '../config/barbers.js';
+import { esTurnoValido, NOMBRES_DIAS, NOMBRES_VISIBLES } from '../config/barbers.js';
 import { revisarSemana } from '../services/validarHorarios.js';
 import { SheetsUnavailableError } from '../services/googleSheetsService.js';
 import messageHandler from '../services/messageHandler.js';
@@ -220,6 +220,9 @@ router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
       ok: true,
       barbero,
       barberos,
+      // Cómo se llama cada uno para la gente. El `value` del selector sigue
+      // siendo el nombre interno: es lo que se guarda en la hoja.
+      nombres: NOMBRES_VISIBLES,
       lunes,
       semanaAnterior: sumarDias(lunes, -7),
       semanaSiguiente: sumarDias(lunes, 7),
@@ -340,6 +343,7 @@ router.get('/panel/api/horarios', requiereSesion, async (req, res) => {
       ok: true,
       barbero,
       barberos,
+      nombres: NOMBRES_VISIBLES,
       dias,
       // Si ningún día viene de la hoja, todavía manda el código.
       desdeLaHoja: dias.some(d => d.deLaHoja),

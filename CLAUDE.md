@@ -115,13 +115,20 @@ export const NOMBRES_VISIBLES = { Julian: 'Juli' };
 
 Se aplica en **todo lo que lee una persona**: la lista de barberos, las
 pantallas de fecha y hora, la confirmación, el flujo de cancelar, el panel del
-barbero por WhatsApp y la plantilla de turno nuevo. **No** se aplica en los
-`console.log`, que a propósito muestran el nombre interno.
+barbero por WhatsApp, la plantilla de turno nuevo y **el panel web**. **No** se
+aplica en los `console.log`, que a propósito muestran el nombre interno.
+
+En el panel web, el servidor manda el mapa en el campo `nombres` de
+`/panel/api/agenda` y `/panel/api/horarios`, y el navegador lo usa solo para el
+texto. ⚠️ **El `value` de cada opción del selector sigue siendo el nombre
+interno** — es lo que se le manda de vuelta al servidor para buscar y guardar.
+Se manda el mapa en vez de copiar la regla en el navegador, que es el error que
+ya se cometió con `partirEnJornadas`.
 
 **Para cambiarle el nombre visible a otro barbero basta con una línea ahí.**
 
-⚠️ **Lo que sigue diciendo `Julian`:** la hoja de cálculo y el selector de
-barberos del panel web. Es a propósito — son la vista de lo que hay guardado.
+⚠️ **Lo único que sigue diciendo `Julian` es la hoja de cálculo**, que es donde
+tiene que decirlo: es el identificador de todos sus turnos.
 
 ### 💈 `Ladino`, RETIRADO desde el 9 de septiembre de 2026
 
