@@ -399,9 +399,9 @@ router.post('/panel/api/varios', requiereSesion, async (req, res) => {
       return res.status(409).json({ ok: false, error: MOTIVOS[resultado.motivo] || 'No se pudo guardar.' });
     }
 
-    const verbo = accion === 'bloquear' ? '🔒 bloqueó' : '🔓 liberó';
+    const [icono, verbo] = accion === 'bloquear' ? ['🔒', 'bloqueó'] : ['🔓', 'liberó'];
     const cuales = resultado.hechos.map(c => `${c.fecha} ${c.hora}`).join(', ');
-    console.log(`${verbo} ${req.admin.telefono} → ${resultado.hechos.length} de ${barbero}: ${cuales || '(ninguno)'}`);
+    console.log(`${icono} ${req.admin.telefono} ${verbo} ${resultado.hechos.length} de ${barbero}: ${cuales || '(ninguno)'}`);
 
     return res.json({ ok: true, hechos: resultado.hechos.length, saltados: resultado.saltados.length });
   } catch (error) {

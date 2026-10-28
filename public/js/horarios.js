@@ -98,6 +98,8 @@ function pintar({ barbero, barberos, dias, desdeLaHoja, nombres }) {
       .join('');
   }
   select.value = barbero;
+  // Un barbero limitado a lo suyo solo recibe su nombre: no hay qué escoger.
+  select.disabled = barberos.length < 2;
 
   $('origen').textContent = desdeLaHoja
     ? 'Estos horarios están guardados en la hoja.'
