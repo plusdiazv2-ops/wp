@@ -192,10 +192,15 @@ Vuelve a quedar disponible para los clientes.`;
 
 $('barbero').addEventListener('change', e => {
   estado.barbero = e.target.value;
-  $('actualizar').addEventListener('click', async (e) => {
-  e.currentTarget.disabled = true;
+  cargar();
+});
+
+$('actualizar').addEventListener('click', async (e) => {
+  // Se guarda antes del await: al terminar el clic, currentTarget queda en null.
+  const boton = e.currentTarget;
+  boton.disabled = true;
   await cargar({ fresco: true });
-  e.currentTarget.disabled = false;
+  boton.disabled = false;
 });
 
 /* ── Refresco automático ──────────────────────────────────
@@ -212,9 +217,6 @@ setInterval(() => {
 // agendas algo por WhatsApp, vuelves al panel, y ya está al día.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') cargar({ fresco: true, deFondo: true });
-});
-
-cargar();
 });
 
 $('anterior').addEventListener('click', e => {
