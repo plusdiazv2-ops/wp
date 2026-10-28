@@ -423,30 +423,31 @@ y bloquearlos o liberarlos juntos. Todo va por `POST /panel/api/varios`.
   bloqueo de uno y el de varios.
 - Cada casilla pasa por la misma revisión (`validarCasilla`) que un clic suelto.
 
-### Un barbero que solo ve lo suyo — columna C de `admins_web`
+### Un barbero que solo ve lo suyo — Julián
 
-Desde el **28 de octubre de 2026** la pestaña `admins_web` tiene una columna C
-opcional, **Barbero**:
+**Quién entra al panel hoy:** los números de `ADMIN_PRINCIPAL` en Railway
+(el desarrollador y Bolón), que ven **todo**, y **cada barbero activo con su
+número de `barberPhones`** (`messageHandler.js`), que ve **solo lo suyo**. Así
+entra Julián desde el **28 de octubre de 2026**, sin tocar la hoja ni Railway.
 
-| A Teléfono | B Nombre | C Barbero | Qué ve |
-|---|---|---|---|
-| 573146926477 | Bolon | *(vacía)* | Todo, como siempre |
-| 573002730493 | Julian | `Julian` | Solo la agenda y los horarios de Julián |
+⚠️ **En la hoja NO existe la pestaña `admins_web`.** El código la sabe leer
+(opcional, columnas A Teléfono · B Nombre · C Barbero), pero hoy no hace falta.
+Si algún día se crea y un número está ahí y también en `barberPhones`, manda
+la hoja: con la C vacía, ese número vería todo.
 
-- La regla está en `barberosPermitidos()` (`accesoPanel.js`). El admin principal
-  (`ADMIN_PRINCIPAL`) ve todo siempre, diga lo que diga la hoja.
-- En la C sirve el nombre interno o el visible (`Julian` o `Juli`).
-- ⚠️ **Un nombre que no es un barbero activo no abre nada**: un error de dedo
-  (`Julain`) o un retirado (`Ladino`) deja a ese número sin ningún barbero, con
-  un aviso. Nunca le abre el panel entero.
+- La lista sale de `adminsConBarberos()` y el permiso de `barberosPermitidos()`,
+  los dos en `accesoPanel.js`. El admin principal se mira primero: Bolón es
+  barbero, pero ve todo porque está en `ADMIN_PRINCIPAL`.
+- Un barbero **apagado** (Ladino, Prueba) no está en `this.barbers` y no entra.
+- Para quitarle el panel a un barbero sin retirarlo habría que tocar código:
+  hoy estar activo y tener número registrado es lo que le da entrada.
 - ⚠️ **La protección está en el servidor**, en cada ruta (`barberosDeLaSesion`).
   Que el selector muestre un solo nombre es comodidad.
-- El barbero también queda en la cookie al entrar (campo `bar`). Solo se usa si
-  el número no aparece en la lista, que es lo que pasa cuando Google falla un
-  momento. La hoja manda sobre la cookie: si le vacían la C, al rato ve todo.
-- ⚠️ **La columna B no cuenta.** Bolón tiene `Bolon` en la B y por eso el
-  barbero va en una columna aparte: leerlo de la B lo habría encerrado en su
-  propia agenda.
+- El barbero también queda en la cookie al entrar (campo `bar`), por si la
+  lista no se pudiera armar un momento.
+- Funciona igual por la web y escribiéndole `acceso` al bot.
+- Si se crea la pestaña: ⚠️ **la columna B no cuenta**, el barbero va en la C.
+  Una C con algo que no es un barbero activo (`Julain`) no abre nada.
 
 ## Variables de entorno
 

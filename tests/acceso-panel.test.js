@@ -15,6 +15,7 @@ const {
   esAdminPrincipal,
   puedeEntrar,
   barberosPermitidos,
+  adminsConBarberos,
   generarCodigo,
   verificarCodigo,
   olvidarCodigos,
@@ -312,5 +313,40 @@ describe('qué barberos ve cada uno en el panel', () => {
 
   test('sin número no ve a nadie', () => {
     assert.deepEqual(ve(''), []);
+  });
+});
+
+describe('los barberos entran con el número que tienen en el bot', () => {
+  const JULIAN = '573002730493';
+  const TELEFONOS = { Bolon: BOLON, Julian: JULIAN, Ladino: '573215342867' };
+  const ACTIVOS = ['Bolon', 'Julian'];
+
+  test('sin pestaña admins_web, Julián entra y queda limitado a lo suyo', () => {
+    const admins = adminsConBarberos([], ACTIVOS, TELEFONOS);
+
+    assert.equal(puedeEntrar(JULIAN, admins.map(a => a.telefono)), true);
+    assert.deepEqual(barberosPermitidos({ telefono: JULIAN, admins, barberos: ACTIVOS }), ['Julian']);
+  });
+
+  test('el admin principal sigue viendo todo aunque también sea barbero', () => {
+    const admins = adminsConBarberos([], ACTIVOS, { ...TELEFONOS, Bolon: YO });
+    assert.deepEqual(barberosPermitidos({ telefono: YO, admins, barberos: ACTIVOS }), ACTIVOS);
+  });
+
+  test('un barbero apagado no entra por aquí', () => {
+    const admins = adminsConBarberos([], ACTIVOS, TELEFONOS);
+    assert.equal(puedeEntrar('573215342867', admins.map(a => a.telefono)), false);
+  });
+
+  test('si el número también está en la hoja, manda la hoja', () => {
+    const hoja = [{ telefono: JULIAN, nombre: 'Julian', barbero: '' }];
+    const admins = adminsConBarberos(hoja, ACTIVOS, TELEFONOS);
+
+    assert.deepEqual(barberosPermitidos({ telefono: JULIAN, admins, barberos: ACTIVOS }), ACTIVOS);
+  });
+
+  test('un desconocido sigue sin entrar', () => {
+    const admins = adminsConBarberos([], ACTIVOS, TELEFONOS);
+    assert.equal(puedeEntrar(DESCONOCIDO, admins.map(a => a.telefono)), false);
   });
 });
