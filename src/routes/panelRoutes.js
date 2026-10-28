@@ -5,6 +5,7 @@ import {
   verificarCodigo,
   puedeEntrar,
   barberosPermitidos,
+  adminsConBarberos,
   normalizarTelefono,
   aNumeroWhatsApp,
   generarCodigo,
@@ -43,6 +44,22 @@ import {
 } from '../services/sesionPanel.js';
 
 const router = express.Router();
+
+/**
+ * Quién entra al panel además del admin principal: la pestaña `admins_web`
+ * (si existe) y los barberos activos con su número del bot, cada uno
+ * limitado a lo suyo. Ver adminsConBarberos().
+ */
+async function adminsDelPanel() {
+  let hoja = [];
+  try {
+    hoja = await obtenerAdminsWeb();
+  } catch (error) {
+    console.log('No se pudo leer la lista de admins:', error?.message || error);
+  }
+
+  return adminsConBarberos(hoja, messageHandler.barbers, messageHandler.barberPhones);
+}
 
 /**
  * A donde se entra. La agenda es lo que el admin viene a ver el 99% de las
@@ -103,12 +120,7 @@ router.post('/panel/api/codigo', async (req, res) => {
     });
   }
 
-  let adminsExtra = [];
-  try {
-    adminsExtra = (await obtenerAdminsWeb()).map(admin => admin.telefono);
-  } catch (error) {
-    console.log('No se pudo leer la lista de admins:', error?.message || error);
-  }
+  const adminsExtra = (await adminsDelPanel()).map(admin => admin.telefono);
 
   if (!puedeEntrar(telefono, adminsExtra)) {
     console.log(`🔐 Panel: código negado a ${telefono}, no está habilitado.`);
@@ -169,12 +181,7 @@ router.post('/panel/api/entrar', async (req, res) => {
 
   if (!telefono || !codigo) return rechazar('faltan datos');
 
-  let admins = [];
-  try {
-    admins = await obtenerAdminsWeb();
-  } catch (error) {
-    console.log('No se pudo leer la lista de admins:', error?.message || error);
-  }
+  const admins = await adminsDelPanel();
 
   if (!puedeEntrar(telefono, admins.map(admin => admin.telefono))) return rechazar('sin permiso');
 
@@ -216,16 +223,9 @@ router.get('/panel/inicio', requiereSesion, (req, res) => {
  * muestre uno es comodidad; quien arme la petición a mano también choca aquí.
  */
 async function barberosDeLaSesion(req) {
-  let admins = [];
-  try {
-    admins = await obtenerAdminsWeb();
-  } catch (error) {
-    console.log('No se pudo leer la lista de admins:', error?.message || error);
-  }
-
   return barberosPermitidos({
     telefono: req.admin.telefono,
-    admins,
+    admins: await adminsDelPanel(),
     barberos: messageHandler.barbers,
     guardado: req.admin.barbero,
   });

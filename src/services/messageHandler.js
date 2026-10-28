@@ -15,7 +15,7 @@ import appendToSheet, {
 import config from '../config/env.js';
 import { partirEnJornadas, nombreVisible } from '../config/barbers.js';
 import { remitenteDe, telefonoVisible } from '../config/contacto.js';
-import { puedeEntrar, generarCodigo, mensajeCodigo } from './accesoPanel.js';
+import { puedeEntrar, adminsConBarberos, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
 
 class MessageHandler {
@@ -805,14 +805,18 @@ class MessageHandler {
    * no confirmarle a un desconocido que existe un panel.
    */
   async handleAccesoPanel(to) {
-    let adminsExtra = [];
+    let adminsHoja = [];
 
     try {
-      adminsExtra = (await obtenerAdminsWeb()).map(admin => admin.telefono);
+      adminsHoja = await obtenerAdminsWeb();
     } catch (error) {
-      // La pestaña de admins es opcional. Si falla, queda el principal.
+      // La pestaña de admins es opcional. Si falla, quedan el principal y
+      // los barberos con su número registrado.
       console.log('No se pudo leer la lista de admins:', error?.message || error);
     }
+
+    const adminsExtra = adminsConBarberos(adminsHoja, this.barbers, this.barberPhones)
+      .map(admin => admin.telefono);
 
     if (!puedeEntrar(to, adminsExtra)) {
       console.log(`🔐 Código de panel negado a ${to}: no está autorizado.`);

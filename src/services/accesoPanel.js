@@ -81,6 +81,28 @@ export function puedeEntrar(telefono, adminsExtra = []) {
 }
 
 /**
+ * Quién entra al panel además del admin principal.
+ *
+ * - Lo de la pestaña `admins_web`, si existe (hoy no existe en la hoja).
+ * - Cada barbero ACTIVO con su número registrado en el bot (`barberPhones`),
+ *   limitado a su propia agenda. Así entra Julián sin tocar la hoja ni
+ *   Railway. Un barbero apagado (Ladino, Prueba) no está en `barberos` y no
+ *   entra por aquí.
+ *
+ * Si un número está en las dos, manda la hoja. Bolón también es barbero,
+ * pero ve todo porque está en ADMIN_PRINCIPAL, que se mira antes que esto.
+ */
+export function adminsConBarberos(adminsHoja = [], barberos = [], telefonos = {}) {
+  const yaEstan = new Set(adminsHoja.map(admin => normalizarTelefono(admin?.telefono)));
+
+  const deBarberos = barberos
+    .map(barbero => ({ telefono: normalizarTelefono(telefonos?.[barbero]), nombre: barbero, barbero }))
+    .filter(admin => admin.telefono && !yaEstan.has(admin.telefono));
+
+  return [...adminsHoja, ...deBarberos];
+}
+
+/**
  * ¿De qué barberos puede ver la agenda y tocar los horarios este número?
  *
  * - Admin principal: de todos, siempre.
