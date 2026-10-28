@@ -51,6 +51,11 @@ describe('la cookie de sesión', () => {
     assert.equal(Math.round(DURACION_MS / 86400000), 30);
   });
 
+  test('guarda a qué barbero se limita, y sin él no trae nada', () => {
+    assert.equal(leerSesion(crearSesion(YO, Date.now(), 'Julian')).bar, 'Julian');
+    assert.equal(leerSesion(crearSesion(YO)).bar, undefined);
+  });
+
   test('vencida no sirve', () => {
     const ahora = Date.now();
     const cookie = crearSesion(YO, ahora);
@@ -70,6 +75,17 @@ describe('intentos de falsificarla', () => {
     ).toString('base64url');
 
     assert.equal(leerSesion(`${otroCuerpo}.${firma}`), null);
+  });
+
+  test('quitarse el barbero para verlo todo invalida la firma', () => {
+    const ahora = Date.now();
+    const firma = crearSesion(YO, ahora, 'Julian').split('.')[1];
+
+    const sinBarbero = Buffer.from(
+      JSON.stringify({ tel: YO, exp: ahora + DURACION_MS })
+    ).toString('base64url');
+
+    assert.equal(leerSesion(`${sinBarbero}.${firma}`), null);
   });
 
   test('estirar el vencimiento invalida la firma', () => {

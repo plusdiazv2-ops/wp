@@ -50,9 +50,15 @@ const deBase64Url = (texto) =>
 const firmar = (cuerpo) =>
   crypto.createHmac('sha256', secreto()).update(cuerpo).digest('base64url');
 
-/** Crea el valor de la cookie para ese número. */
-export function crearSesion(telefono, ahora = Date.now()) {
+/**
+ * Crea el valor de la cookie para ese número.
+ *
+ * `barbero` es la columna C de `admins_web` al momento de entrar: a qué
+ * barbero se limita. Vacío no se guarda, y las cookies de antes no lo traen.
+ */
+export function crearSesion(telefono, ahora = Date.now(), barbero = '') {
   const datos = { tel: String(telefono), exp: ahora + DURACION_MS };
+  if (barbero) datos.bar = String(barbero);
   const cuerpo = aBase64Url(JSON.stringify(datos));
 
   return `${cuerpo}.${firmar(cuerpo)}`;

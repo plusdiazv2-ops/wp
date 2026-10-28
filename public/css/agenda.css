@@ -296,3 +296,90 @@ thead th.es-pasado { opacity: 0.5; }
 
 /* Cuando los datos ya tienen rato, el aviso se hace notar */
 .agenda__cuando.esta-viejo { color: #e0a86a; }
+
+/* ── Varios a la vez ───────────────────────────────────── */
+.dia__acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.dia__accion {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid rgba(201, 168, 106, 0.3);
+  border-radius: 999px;
+  background: none;
+  color: var(--texto-suave);
+  font-family: var(--cuerpo);
+  font-size: 0.66rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dia__accion:hover { color: var(--dorado); border-color: var(--dorado); }
+.dia__accion[disabled] { opacity: 0.45; cursor: default; }
+
+.agenda__seleccionar {
+  padding: 0.6rem 1.1rem;
+  border: 1px solid rgba(201, 168, 106, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: var(--texto-suave);
+  font-family: var(--cuerpo);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.agenda__seleccionar:hover { color: var(--dorado); border-color: var(--dorado); }
+.agenda__seleccionar.esta-activo { background: var(--dorado); border-color: var(--dorado); color: #1a1410; }
+
+.celda--elegida,
+.celda--elegida:hover {
+  outline: 2px solid var(--dorado);
+  outline-offset: -2px;
+  background: rgba(201, 168, 106, 0.22);
+}
+.celda--libre.celda--elegida::after,
+.celda--libre.celda--elegida:hover::after { content: '✓'; color: var(--dorado); font-size: 1rem; }
+
+/* La barra se queda pegada abajo mientras se marca, para no tener que
+   bajar hasta el final de la semana a buscar el botón. */
+.agenda__varios {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(201, 168, 106, 0.4);
+  border-radius: 12px;
+  background: rgba(30, 25, 20, 0.97);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.agenda__varios[hidden] { display: none; }
+
+.agenda__varios-cuantos { font-size: 0.85rem; color: var(--crema); }
+.agenda__varios-botones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.agenda__varios-boton {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--dorado);
+  border-radius: 999px;
+  background: var(--dorado);
+  color: #1a1410;
+  font-family: var(--cuerpo);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.agenda__varios-boton[disabled] { opacity: 0.35; cursor: default; }
+.agenda__varios-boton--suave { background: none; color: var(--texto-suave); border-color: rgba(201, 168, 106, 0.35); font-weight: 500; }
+
+.agenda__aviso--ok {
+  border-left-color: #78c88c;
+  background: rgba(120, 200, 140, 0.1);
+  color: #b9e6c4;
+}

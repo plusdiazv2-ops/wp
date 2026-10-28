@@ -14,6 +14,7 @@ const {
   adminsPrincipales,
   esAdminPrincipal,
   puedeEntrar,
+  barberosPermitidos,
   generarCodigo,
   verificarCodigo,
   olvidarCodigos,
@@ -256,5 +257,60 @@ describe('el mensaje del codigo', () => {
     // deja claro que la funcion es la unica fuente.
     assert.equal(mensajeCodigo('000111'), mensajeCodigo('000111'));
     assert.notEqual(mensajeCodigo('000111'), mensajeCodigo('000222'));
+  });
+});
+
+describe('qué barberos ve cada uno en el panel', () => {
+  const JULIAN = '573002730493';
+  const BARBEROS = ['Bolon', 'Julian'];
+  const ADMINS = [
+    { telefono: BOLON, nombre: 'Bolon', barbero: '' },
+    { telefono: JULIAN, nombre: 'Julian', barbero: 'Julian' },
+  ];
+
+  const ve = (telefono, extra = {}) =>
+    barberosPermitidos({ telefono, admins: ADMINS, barberos: BARBEROS, ...extra });
+
+  test('el admin principal ve a todos', () => {
+    assert.deepEqual(ve(YO), BARBEROS);
+  });
+
+  test('con la columna C vacía ve a todos: Bolón sigue igual', () => {
+    assert.deepEqual(ve(BOLON), BARBEROS);
+  });
+
+  test('con su nombre en la columna C ve SOLO lo suyo', () => {
+    assert.deepEqual(ve(JULIAN), ['Julian']);
+  });
+
+  test('sirve también el nombre visible y sin importar mayúsculas', () => {
+    for (const escrito of ['Juli', 'JULI', ' julian ']) {
+      const admins = [{ telefono: JULIAN, barbero: escrito }];
+      assert.deepEqual(ve(JULIAN, { admins }), ['Julian'], escrito);
+    }
+  });
+
+  test('un error de dedo en la C no le abre todo: no ve a nadie', () => {
+    const admins = [{ telefono: JULIAN, barbero: 'Julain' }];
+    assert.deepEqual(ve(JULIAN, { admins }), []);
+  });
+
+  test('un barbero retirado en la C tampoco ve nada', () => {
+    const admins = [{ telefono: JULIAN, barbero: 'Ladino' }];
+    assert.deepEqual(ve(JULIAN, { admins }), []);
+  });
+
+  test('si Google falla y la lista llega vacía, manda lo de la cookie', () => {
+    // Sin esto, a Julián se le abriría todo justo cuando la hoja no responde.
+    assert.deepEqual(ve(JULIAN, { admins: [], guardado: 'Julian' }), ['Julian']);
+  });
+
+  test('la hoja manda sobre la cookie: si le vacían la C, ve a todos', () => {
+    const admins = [{ telefono: JULIAN, barbero: '' }];
+    assert.deepEqual(ve(JULIAN, { admins, guardado: 'Julian' }), BARBEROS);
+  });
+
+  test('sin número no ve a nadie', () => {
+    assert.deepEqual(ve(''), []);
   });
 });

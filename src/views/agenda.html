@@ -14,7 +14,7 @@
 
   <link rel="stylesheet" href="/css/estilos.css" />
   <link rel="stylesheet" href="/css/panel.css" />
-  <link rel="stylesheet" href="/css/agenda.css" />
+  <link rel="stylesheet" href="/css/agenda.css?v=varios" />
   <link rel="stylesheet" href="/css/horarios.css" />
 </head>
 
@@ -45,6 +45,8 @@
 
       <button type="button" class="agenda__hoy" id="hoy">Esta semana</button>
 
+      <button type="button" class="agenda__seleccionar" id="seleccionar">Seleccionar varios</button>
+
       <div class="agenda__frescura">
         <button type="button" class="agenda__actualizar" id="actualizar" title="Traer los datos del momento">
           ⟳ Actualizar
@@ -59,6 +61,15 @@
       <table class="agenda__tabla" id="tabla"></table>
     </div>
 
+    <div class="agenda__varios" id="varios" hidden>
+      <span class="agenda__varios-cuantos" id="varios-cuantos"></span>
+      <div class="agenda__varios-botones">
+        <button type="button" class="agenda__varios-boton" id="varios-bloquear" disabled>Bloquear (0)</button>
+        <button type="button" class="agenda__varios-boton" id="varios-liberar" disabled>Liberar (0)</button>
+        <button type="button" class="agenda__varios-boton agenda__varios-boton--suave" id="varios-cancelar">Cancelar</button>
+      </div>
+    </div>
+
     <div class="agenda__leyenda">
       <span><i class="punto punto--ocupado"></i> Ocupado</span>
       <span><i class="punto punto--libre"></i> Libre</span>
@@ -67,10 +78,11 @@
     </div>
 
     <p class="agenda__nota">
-      Toca un turno <strong>libre</strong> para bloquearlo, o uno <strong>bloqueado</strong> para liberarlo.<br />Los turnos de clientes no se pueden tocar desde aquí.
+      Toca un turno <strong>libre</strong> para bloquearlo, o uno <strong>bloqueado</strong> para liberarlo.<br />
+      Para varios a la vez: <strong>Bloquear día</strong> arriba de cada día, o <strong>Seleccionar varios</strong>.<br />Los turnos de clientes no se pueden tocar desde aquí.
     </p>
   </main>
 
-  <script src="/js/agenda.js"></script>
+  <script src="/js/agenda.js?v=varios"></script>
 </body>
 </html>

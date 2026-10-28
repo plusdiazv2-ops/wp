@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   verificarCodigo,
   puedeEntrar,
+  barberosPermitidos,
   normalizarTelefono,
   aNumeroWhatsApp,
   generarCodigo,
@@ -16,6 +17,8 @@ import {
   obtenerTurnos,
   bloquearHorario,
   desbloquearHorario,
+  bloquearVarios,
+  desbloquearVarios,
   guardarHorarios,
   horariosDeBarbero,
 } from '../services/googleSheetsService.js';
@@ -166,21 +169,24 @@ router.post('/panel/api/entrar', async (req, res) => {
 
   if (!telefono || !codigo) return rechazar('faltan datos');
 
-  let adminsExtra = [];
+  let admins = [];
   try {
-    adminsExtra = (await obtenerAdminsWeb()).map(admin => admin.telefono);
+    admins = await obtenerAdminsWeb();
   } catch (error) {
     console.log('No se pudo leer la lista de admins:', error?.message || error);
   }
 
-  if (!puedeEntrar(telefono, adminsExtra)) return rechazar('sin permiso');
+  if (!puedeEntrar(telefono, admins.map(admin => admin.telefono))) return rechazar('sin permiso');
 
   const resultado = verificarCodigo(telefono, codigo);
   if (!resultado.ok) return rechazar(resultado.motivo);
 
-  res.cookie(NOMBRE_COOKIE, crearSesion(telefono), opcionesCookie(req));
+  // Si es un barbero limitado a lo suyo (columna C), queda en la cookie.
+  const barbero = admins.find(admin => normalizarTelefono(admin.telefono) === telefono)?.barbero || '';
 
-  console.log(`🔐 Panel: entró ${telefono}`);
+  res.cookie(NOMBRE_COOKIE, crearSesion(telefono, Date.now(), barbero), opcionesCookie(req));
+
+  console.log(`🔐 Panel: entró ${telefono}${barbero ? ` (solo ${barbero})` : ''}`);
 
   return res.json({ ok: true, destino: PANEL_INICIO });
 });
@@ -202,9 +208,35 @@ router.get('/panel/inicio', requiereSesion, (req, res) => {
   return res.redirect(PANEL_INICIO);
 });
 
+/**
+ * Los barberos que puede manejar quien entró: todos, o solo el suyo si es
+ * un barbero limitado (columna C de `admins_web`).
+ *
+ * ⚠️ Esto es lo que de verdad protege. Que el selector de la pantalla solo
+ * muestre uno es comodidad; quien arme la petición a mano también choca aquí.
+ */
+async function barberosDeLaSesion(req) {
+  let admins = [];
+  try {
+    admins = await obtenerAdminsWeb();
+  } catch (error) {
+    console.log('No se pudo leer la lista de admins:', error?.message || error);
+  }
+
+  return barberosPermitidos({
+    telefono: req.admin.telefono,
+    admins,
+    barberos: messageHandler.barbers,
+    guardado: req.admin.barbero,
+  });
+}
+
+const SIN_BARBERO = 'Tu acceso al panel no tiene un barbero válido asignado. Pídele al administrador que lo revise.';
+
 /** Datos de la agenda de una semana. Solo lee. */
 router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
-  const barberos = messageHandler.barbers;
+  const barberos = await barberosDeLaSesion(req);
+  if (!barberos.length) return res.status(403).json({ ok: false, error: SIN_BARBERO });
 
   const pedido = String(req.query.barbero || '').toLowerCase().trim();
   const barbero = barberos.find(b => b.toLowerCase() === pedido) || barberos[0];
@@ -282,7 +314,7 @@ const MOTIVOS = {
 
 /** Marcar un horario como no disponible. */
 router.post('/panel/api/bloquear', requiereSesion, async (req, res) => {
-  const datos = await validarCasilla(req.body, messageHandler.barbers);
+  const datos = await validarCasilla(req.body, await barberosDeLaSesion(req));
   if (datos.error) return res.status(400).json({ ok: false, error: datos.error });
 
   try {
@@ -301,7 +333,7 @@ router.post('/panel/api/bloquear', requiereSesion, async (req, res) => {
 
 /** Quitar un bloqueo. */
 router.post('/panel/api/desbloquear', requiereSesion, async (req, res) => {
-  const datos = await validarCasilla(req.body, messageHandler.barbers);
+  const datos = await validarCasilla(req.body, await barberosDeLaSesion(req));
   if (datos.error) return res.status(400).json({ ok: false, error: datos.error });
 
   try {
@@ -315,6 +347,65 @@ router.post('/panel/api/desbloquear', requiereSesion, async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     return responderFallo(res, error, 'desbloquear');
+  }
+});
+
+/** Cuántos turnos se pueden mandar de una vez. Una semana entera de Bolón son ~100. */
+const MAX_CASILLAS = 120;
+
+/**
+ * Bloquear o liberar varios turnos de una vez: "Bloquear día", "Liberar día"
+ * y la selección de varios turnos.
+ *
+ * Cada casilla pasa por la MISMA revisión que un clic suelto: barbero de esta
+ * sesión, fecha válida y hora que exista en su jornada ese día. Si una sola
+ * falla, no se escribe nada.
+ */
+router.post('/panel/api/varios', requiereSesion, async (req, res) => {
+  const accion = req.body?.accion;
+  if (accion !== 'bloquear' && accion !== 'desbloquear') {
+    return res.status(400).json({ ok: false, error: 'Acción inválida.' });
+  }
+
+  const casillas = Array.isArray(req.body?.casillas) ? req.body.casillas : [];
+  if (!casillas.length) {
+    return res.status(400).json({ ok: false, error: 'No escogiste ningún turno.' });
+  }
+  if (casillas.length > MAX_CASILLAS) {
+    return res.status(400).json({ ok: false, error: `Son demasiados turnos de una vez (máximo ${MAX_CASILLAS}).` });
+  }
+
+  const barberos = await barberosDeLaSesion(req);
+  const revisadas = [];
+
+  for (const casilla of casillas) {
+    const datos = await validarCasilla(
+      { barbero: req.body?.barbero, fecha: casilla?.fecha, hora: casilla?.hora },
+      barberos
+    );
+    if (datos.error) return res.status(400).json({ ok: false, error: datos.error });
+    revisadas.push(datos);
+  }
+
+  const barbero = revisadas[0].barbero;
+  const lista = revisadas.map(({ fecha, hora }) => ({ fecha, hora }));
+
+  try {
+    const resultado = accion === 'bloquear'
+      ? await bloquearVarios(barbero, lista)
+      : await desbloquearVarios(barbero, lista);
+
+    if (!resultado.ok) {
+      return res.status(409).json({ ok: false, error: MOTIVOS[resultado.motivo] || 'No se pudo guardar.' });
+    }
+
+    const [icono, verbo] = accion === 'bloquear' ? ['🔒', 'bloqueó'] : ['🔓', 'liberó'];
+    const cuales = resultado.hechos.map(c => `${c.fecha} ${c.hora}`).join(', ');
+    console.log(`${icono} ${req.admin.telefono} ${verbo} ${resultado.hechos.length} de ${barbero}: ${cuales || '(ninguno)'}`);
+
+    return res.json({ ok: true, hechos: resultado.hechos.length, saltados: resultado.saltados.length });
+  } catch (error) {
+    return responderFallo(res, error, `${accion} varios`);
   }
 });
 
@@ -332,7 +423,8 @@ function responderFallo(res, error, accion) {
 
 /** Los horarios actuales de un barbero. */
 router.get('/panel/api/horarios', requiereSesion, async (req, res) => {
-  const barberos = messageHandler.barbers;
+  const barberos = await barberosDeLaSesion(req);
+  if (!barberos.length) return res.status(403).json({ ok: false, error: SIN_BARBERO });
   const pedido = String(req.query.barbero || '').toLowerCase().trim();
   const barbero = barberos.find(b => b.toLowerCase() === pedido) || barberos[0];
 
@@ -355,7 +447,7 @@ router.get('/panel/api/horarios', requiereSesion, async (req, res) => {
 
 /** Guardar los horarios de un barbero. */
 router.post('/panel/api/horarios', requiereSesion, async (req, res) => {
-  const barberos = messageHandler.barbers;
+  const barberos = await barberosDeLaSesion(req);
   const pedido = String(req.body?.barbero || '').toLowerCase().trim();
   const barbero = barberos.find(b => b.toLowerCase() === pedido);
 
