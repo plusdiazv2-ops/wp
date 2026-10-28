@@ -405,6 +405,49 @@ borrar corre los números de todas las de abajo.
 correcta.** Vale para bloqueos y para las cancelaciones de clientes. Sin eso,
 una fila insertada a mano en la hoja hace que se cancele el turno de otro.
 
+### Varios turnos a la vez
+
+En la agenda, arriba de cada día que no ha pasado, salen **Bloquear día** y
+**Liberar día**. Y el botón **Seleccionar varios** deja marcar turnos sueltos
+y bloquearlos o liberarlos juntos. Todo va por `POST /panel/api/varios`.
+
+- **No es un bucle de bloqueos sueltos.** `bloquearVarios` lee la hoja una vez
+  y escribe todas las filas en una sola llamada; `desbloquearVarios` hace dos
+  lecturas y una escritura. Repetir `bloquearHorario` por cada turno gastaría
+  ~50 consultas en un día de Bolón, y el tope por minuto de Google es el mismo
+  que usa el bot.
+- **Liberar solo encuentra filas de `Descanso`** (`buscarBloqueos`): un turno de
+  cliente nunca sale de ahí. Si una sola fila cambió de sitio entre las dos
+  lecturas, no se toca **ninguna**.
+- La fila de bloqueo vive en una sola función, `filaDeBloqueo()`, que usan el
+  bloqueo de uno y el de varios.
+- Cada casilla pasa por la misma revisión (`validarCasilla`) que un clic suelto.
+
+### Un barbero que solo ve lo suyo — columna C de `admins_web`
+
+Desde el **28 de octubre de 2026** la pestaña `admins_web` tiene una columna C
+opcional, **Barbero**:
+
+| A Teléfono | B Nombre | C Barbero | Qué ve |
+|---|---|---|---|
+| 573146926477 | Bolon | *(vacía)* | Todo, como siempre |
+| 573002730493 | Julian | `Julian` | Solo la agenda y los horarios de Julián |
+
+- La regla está en `barberosPermitidos()` (`accesoPanel.js`). El admin principal
+  (`ADMIN_PRINCIPAL`) ve todo siempre, diga lo que diga la hoja.
+- En la C sirve el nombre interno o el visible (`Julian` o `Juli`).
+- ⚠️ **Un nombre que no es un barbero activo no abre nada**: un error de dedo
+  (`Julain`) o un retirado (`Ladino`) deja a ese número sin ningún barbero, con
+  un aviso. Nunca le abre el panel entero.
+- ⚠️ **La protección está en el servidor**, en cada ruta (`barberosDeLaSesion`).
+  Que el selector muestre un solo nombre es comodidad.
+- El barbero también queda en la cookie al entrar (campo `bar`). Solo se usa si
+  el número no aparece en la lista, que es lo que pasa cuando Google falla un
+  momento. La hoja manda sobre la cookie: si le vacían la C, al rato ve todo.
+- ⚠️ **La columna B no cuenta.** Bolón tiene `Bolon` en la B y por eso el
+  barbero va en una columna aparte: leerlo de la B lo habría encerrado en su
+  propia agenda.
+
 ## Variables de entorno
 
 | Variable | Si falta |
