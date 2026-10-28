@@ -184,8 +184,13 @@ export const obtenerTurnos = async (barbero, dia) => {
 // ============================================================
 // Una fila por admin agregado desde el panel:
 //
-//   A: Teléfono      B: Nombre
+//   A: Teléfono      B: Nombre     C: Barbero
 //   573146926477     Bolon
+//   573002730493     Julian        Julian
+//
+// La C dice a qué barbero se limita ese número. Vacía = ve a todos, como
+// siempre. Con un nombre = solo ve y toca la agenda y los horarios de ese
+// barbero. Ver barberosPermitidos() en accesoPanel.js.
 //
 // El admin principal NO vive aquí, vive en la variable ADMIN_PRINCIPAL.
 // Así, si alguien se equivoca editando esta pestaña o la borra, todavía
@@ -214,7 +219,7 @@ export const obtenerAdminsWeb = async () => {
 
     const respuesta = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `'${PESTANA_ADMINS}'!A:B`,
+      range: `'${PESTANA_ADMINS}'!A:C`,
       auth: authClient,
     });
 
@@ -223,6 +228,7 @@ export const obtenerAdminsWeb = async () => {
       .map(fila => ({
         telefono: String(fila[0] || '').replace(/\D/g, ''),
         nombre: String(fila[1] || '').trim(),
+        barbero: String(fila[2] || '').trim(),
       }))
       .filter(admin => admin.telefono);
   } catch (error) {

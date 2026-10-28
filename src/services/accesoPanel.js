@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import config from '../config/env.js';
+import { nombreVisible } from '../config/barbers.js';
 
 /**
  * ACCESO AL PANEL DE ADMINISTRACIÓN
@@ -77,6 +78,40 @@ export function puedeEntrar(telefono, adminsExtra = []) {
   if (esAdminPrincipal(numero)) return true;
 
   return adminsExtra.map(normalizarTelefono).includes(numero);
+}
+
+/**
+ * ¿De qué barberos puede ver la agenda y tocar los horarios este número?
+ *
+ * - Admin principal: de todos, siempre.
+ * - En `admins_web` con la columna C vacía: de todos (así entra Bolón).
+ * - Con un barbero en la C: SOLO de ese. Se acepta el nombre interno o el
+ *   visible ("Julian" o "Juli"), sin importar mayúsculas.
+ * - Con algo en la C que no es un barbero activo: de NINGUNO. Un error de
+ *   dedo en la hoja no puede terminar abriéndole el panel entero.
+ *
+ * `guardado` es el barbero que quedó en su cookie al entrar. Solo se usa si
+ * el número no aparece en la lista, que es lo que pasa cuando Google falla
+ * un momento: sin esto, a Julián se le abriría todo justo en ese rato.
+ *
+ * → lista de nombres internos, en el mismo orden de `barberos`.
+ */
+export function barberosPermitidos({ telefono, admins = [], barberos = [], guardado = '' }) {
+  const numero = normalizarTelefono(telefono);
+  if (!numero) return [];
+
+  if (esAdminPrincipal(numero)) return [...barberos];
+
+  const fila = admins.find(admin => normalizarTelefono(admin?.telefono) === numero);
+  const asignado = String((fila ? fila.barbero : guardado) || '').trim().toLowerCase();
+
+  if (!asignado) return [...barberos];
+
+  const suyo = barberos.find(b =>
+    b.toLowerCase() === asignado || nombreVisible(b).toLowerCase() === asignado
+  );
+
+  return suyo ? [suyo] : [];
 }
 
 /**

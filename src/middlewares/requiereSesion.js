@@ -21,7 +21,8 @@ export function requiereSesion(req, res, next) {
     return res.redirect('/panel/');
   }
 
-  req.admin = { telefono: sesion.tel, expira: sesion.exp };
+  // `barbero` solo lo traen las sesiones de un barbero limitado a lo suyo.
+  req.admin = { telefono: sesion.tel, expira: sesion.exp, barbero: sesion.bar || '' };
 
   return next();
 }
