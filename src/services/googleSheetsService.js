@@ -694,6 +694,24 @@ const igual = (a, b) => String(a || '').toLowerCase().trim() === String(b || '')
 const esFilaDeBloqueo = (fila) =>
   String(fila?.[3] || '').toLowerCase().trim().startsWith(NOMBRE_BLOQUEO.toLowerCase());
 
+/** La fila que se escribe para bloquear un turno. La usan el bloqueo de uno y el de varios. */
+export const filaDeBloqueo = (barbero, fecha, hora) => [
+  fecha,                       // A  fecha
+  fechaVisible(fecha),         // B  día visible
+  hora,                        // C  hora, tal cual
+  NOMBRE_BLOQUEO,              // D  nombre
+  '',                          // E  teléfono: no hay cliente
+  barbero,                     // F  barbero
+  'Confirmado',                // G  ocupa el turno
+  new Date().toISOString(),    // H  cuándo se creó
+  fechaHoraTurno(fecha, hora), // I  para el recordatorio
+  'Sí',                        // J  ⚠️ ya "recordado", ver abajo
+];
+
+// ⚠️ La J va en "Sí" a propósito. Si fuera "No", el cron de recordatorios
+// recogería esta fila e intentaría mandarle un WhatsApp a un teléfono
+// vacío, cada 5 minutos, para siempre.
+
 /**
  * Marca un horario como no disponible.
  *
@@ -707,22 +725,7 @@ export const bloquearHorario = async (barbero, fecha, hora) => {
     return { ok: false, motivo: 'ocupado' };
   }
 
-  const fila = [
-    fecha,                       // A  fecha
-    fechaVisible(fecha),         // B  día visible
-    hora,                        // C  hora, tal cual
-    NOMBRE_BLOQUEO,              // D  nombre
-    '',                          // E  teléfono: no hay cliente
-    barbero,                     // F  barbero
-    'Confirmado',                // G  ocupa el turno
-    new Date().toISOString(),    // H  cuándo se creó
-    fechaHoraTurno(fecha, hora), // I  para el recordatorio
-    'Sí',                        // J  ⚠️ ya "recordado", ver abajo
-  ];
-
-  // ⚠️ La J va en "Sí" a propósito. Si fuera "No", el cron de recordatorios
-  // recogería esta fila e intentaría mandarle un WhatsApp a un teléfono
-  // vacío, cada 5 minutos, para siempre.
+  const fila = filaDeBloqueo(barbero, fecha, hora);
 
   const authClient = await getAuthClient();
   const resultado = await addRowSheet(authClient, fila);
@@ -788,6 +791,159 @@ export const desbloquearHorario = async (barbero, fecha, hora) => {
   if (!respuesta) return { ok: false, motivo: 'no_se_pudo_guardar' };
 
   return { ok: true, fila: encontrado.numeroFila };
+};
+
+
+// ============================================================
+// BLOQUEAR Y LIBERAR VARIOS A LA VEZ
+// ============================================================
+// Para "Bloquear día" y para tocar varios turnos y bloquearlos juntos.
+//
+// No se llama N veces a bloquearHorario: cada llamada son 2 o 3 consultas a
+// Google, y Google pone un tope por minuto que el bot TAMBIÉN usa. Un día
+// entero de Bolón serían ~50 consultas de golpe. Aquí es una lectura y una
+// escritura al bloquear, y dos lecturas y una escritura al liberar.
+
+/** Sin repetidas y sin las que no traen fecha u hora. */
+const casillasUnicas = (casillas) => {
+  const vistas = new Set();
+
+  return (casillas || []).filter(c => {
+    const clave = `${String(c?.fecha || '').trim()}|${String(c?.hora || '').trim().toLowerCase()}`;
+    if (!c?.fecha || !c?.hora || vistas.has(clave)) return false;
+    vistas.add(clave);
+    return true;
+  });
+};
+
+/** ¿Esta fila es el bloqueo de esa casilla? Una fila de cliente nunca lo es. */
+export const esElBloqueo = (fila, barbero, casilla) =>
+  igual(fila?.[0], casilla.fecha) &&
+  igual(fila?.[2], casilla.hora) &&
+  igual(fila?.[5], barbero) &&
+  igual(fila?.[6], 'confirmado') &&
+  esFilaDeBloqueo(fila);
+
+/**
+ * De las casillas pedidas, cuáles se pueden bloquear y cuáles no porque ya
+ * están ocupadas (por un cliente o por otro bloqueo).
+ */
+export function separarParaBloquear(filas, barbero, casillas) {
+  const ocupada = (c) => (filas || []).some(fila =>
+    igual(fila[0], c.fecha) &&
+    igual(fila[2], c.hora) &&
+    igual(fila[5], barbero) &&
+    igual(fila[6], 'confirmado')
+  );
+
+  const pedidas = casillasUnicas(casillas);
+
+  return {
+    libres: pedidas.filter(c => !ocupada(c)),
+    yaOcupadas: pedidas.filter(ocupada),
+  };
+}
+
+/**
+ * De las casillas pedidas, en qué fila está el bloqueo de cada una.
+ * Solo encuentra filas de `Descanso`: un turno de cliente NUNCA sale de aquí.
+ *
+ * → { encontrados: [{ casilla, numeroFila }], sinBloqueo: [casillas] }
+ */
+export function buscarBloqueos(filas, barbero, casillas) {
+  const encontrados = [];
+  const sinBloqueo = [];
+
+  for (const casilla of casillasUnicas(casillas)) {
+    // La fila 1 es el encabezado; el índice i corresponde a la fila i + 1.
+    const indice = (filas || []).findIndex((fila, i) => i > 0 && esElBloqueo(fila, barbero, casilla));
+
+    if (indice === -1) sinBloqueo.push(casilla);
+    else encontrados.push({ casilla, numeroFila: indice + 1 });
+  }
+
+  return { encontrados, sinBloqueo };
+}
+
+/** Bloquea varios turnos de un barbero. → { ok, hechos, saltados } */
+export const bloquearVarios = async (barbero, casillas) => {
+  const authClient = await getAuthClient();
+  const filas = await getSheetData(authClient, { fresco: true });
+
+  const { libres, yaOcupadas } = separarParaBloquear(filas, barbero, casillas);
+
+  if (!libres.length) return { ok: true, hechos: [], saltados: yaOcupadas };
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'barber'!A:J",
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values: libres.map(c => filaDeBloqueo(barbero, c.fecha, c.hora)) },
+      auth: authClient,
+    });
+  } catch (error) {
+    console.error('Error en bloquearVarios:', error?.message || error);
+    return { ok: false, motivo: 'no_se_pudo_guardar' };
+  }
+
+  limpiarCacheTurnos();
+
+  return { ok: true, hechos: libres, saltados: yaOcupadas };
+};
+
+/**
+ * Libera varios bloqueos de un barbero. → { ok, hechos, saltados }
+ *
+ * Igual que desbloquearHorario: nunca borra, pasa la fila a "Cancelado", y
+ * relee la hoja justo antes de escribir. Si UNA sola fila cambió de sitio
+ * mientras tanto, no se toca ninguna: alguien está moviendo la hoja a mano
+ * y lo seguro es volver a empezar.
+ */
+export const desbloquearVarios = async (barbero, casillas) => {
+  const authClient = await getAuthClient();
+  const filas = await getSheetData(authClient, { fresco: true });
+
+  const { encontrados, sinBloqueo } = buscarBloqueos(filas, barbero, casillas);
+
+  if (!encontrados.length) return { ok: true, hechos: [], saltados: sinBloqueo };
+
+  const ahora = await getSheetData(authClient, { fresco: true });
+  const siguenIgual = encontrados.every(({ casilla, numeroFila }) =>
+    esElBloqueo(ahora[numeroFila - 1], barbero, casilla)
+  );
+
+  if (!siguenIgual) {
+    console.error('⚠️ La hoja cambió mientras se liberaban varios turnos. No se toca nada.');
+    return { ok: false, motivo: 'la_hoja_cambio' };
+  }
+
+  try {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      resource: {
+        valueInputOption: 'RAW',
+        data: encontrados.map(({ numeroFila }) => ({
+          range: `'barber'!G${numeroFila}`,
+          values: [['Cancelado']],
+        })),
+      },
+      auth: authClient,
+    });
+  } catch (error) {
+    console.error('Error en desbloquearVarios:', error?.message || error);
+    return { ok: false, motivo: 'no_se_pudo_guardar' };
+  }
+
+  limpiarCacheTurnos();
+
+  return {
+    ok: true,
+    hechos: encontrados.map(e => e.casilla),
+    filas: encontrados.map(e => e.numeroFila),
+    saltados: sinBloqueo,
+  };
 };
 
 

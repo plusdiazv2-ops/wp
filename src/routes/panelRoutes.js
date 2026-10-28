@@ -17,6 +17,8 @@ import {
   obtenerTurnos,
   bloquearHorario,
   desbloquearHorario,
+  bloquearVarios,
+  desbloquearVarios,
   guardarHorarios,
   horariosDeBarbero,
 } from '../services/googleSheetsService.js';
@@ -345,6 +347,65 @@ router.post('/panel/api/desbloquear', requiereSesion, async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     return responderFallo(res, error, 'desbloquear');
+  }
+});
+
+/** Cuántos turnos se pueden mandar de una vez. Una semana entera de Bolón son ~100. */
+const MAX_CASILLAS = 120;
+
+/**
+ * Bloquear o liberar varios turnos de una vez: "Bloquear día", "Liberar día"
+ * y la selección de varios turnos.
+ *
+ * Cada casilla pasa por la MISMA revisión que un clic suelto: barbero de esta
+ * sesión, fecha válida y hora que exista en su jornada ese día. Si una sola
+ * falla, no se escribe nada.
+ */
+router.post('/panel/api/varios', requiereSesion, async (req, res) => {
+  const accion = req.body?.accion;
+  if (accion !== 'bloquear' && accion !== 'desbloquear') {
+    return res.status(400).json({ ok: false, error: 'Acción inválida.' });
+  }
+
+  const casillas = Array.isArray(req.body?.casillas) ? req.body.casillas : [];
+  if (!casillas.length) {
+    return res.status(400).json({ ok: false, error: 'No escogiste ningún turno.' });
+  }
+  if (casillas.length > MAX_CASILLAS) {
+    return res.status(400).json({ ok: false, error: `Son demasiados turnos de una vez (máximo ${MAX_CASILLAS}).` });
+  }
+
+  const barberos = await barberosDeLaSesion(req);
+  const revisadas = [];
+
+  for (const casilla of casillas) {
+    const datos = await validarCasilla(
+      { barbero: req.body?.barbero, fecha: casilla?.fecha, hora: casilla?.hora },
+      barberos
+    );
+    if (datos.error) return res.status(400).json({ ok: false, error: datos.error });
+    revisadas.push(datos);
+  }
+
+  const barbero = revisadas[0].barbero;
+  const lista = revisadas.map(({ fecha, hora }) => ({ fecha, hora }));
+
+  try {
+    const resultado = accion === 'bloquear'
+      ? await bloquearVarios(barbero, lista)
+      : await desbloquearVarios(barbero, lista);
+
+    if (!resultado.ok) {
+      return res.status(409).json({ ok: false, error: MOTIVOS[resultado.motivo] || 'No se pudo guardar.' });
+    }
+
+    const verbo = accion === 'bloquear' ? '🔒 bloqueó' : '🔓 liberó';
+    const cuales = resultado.hechos.map(c => `${c.fecha} ${c.hora}`).join(', ');
+    console.log(`${verbo} ${req.admin.telefono} → ${resultado.hechos.length} de ${barbero}: ${cuales || '(ninguno)'}`);
+
+    return res.json({ ok: true, hechos: resultado.hechos.length, saltados: resultado.saltados.length });
+  } catch (error) {
+    return responderFallo(res, error, `${accion} varios`);
   }
 });
 
