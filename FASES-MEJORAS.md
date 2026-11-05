@@ -3,7 +3,7 @@
 > Control de las mejoras del bot. **Se actualiza con cada cambio.**
 > Detalle técnico de cada cosa: `CLAUDE.md`. Historia completa: `git log`.
 >
-> Última actualización: **5 de noviembre de 2026** (Fase 2 en pruebas)
+> Última actualización: **5 de noviembre de 2026** (Fase 2 en pausa por Meta)
 
 ## Resumen
 
@@ -11,12 +11,12 @@
 |---|---|---|
 | 0 | Blindaje contra fallos silenciosos | ✅ En producción |
 | 1 | Festivos y ajustes | ✅ En producción |
-| 2 | Agendar con formulario de WhatsApp (Flows) | ⏳ Construido · en pruebas con Prueba |
+| 2 | Agendar con formulario de WhatsApp (Flows) | ⏸️ Listo, pero Meta lo bloquea (falta verificar el negocio) |
 | 3 | Base de datos real (salir de Google Sheets) | 🔜 Por decidir |
 | 4 | IA de rescate | 🔜 Pendiente |
 | 5 | Crecimiento (campañas, reseñas, pagos) | 🔜 Pendiente |
 
-Leyenda: ✅ hecho · ⏳ en curso o esperando algo · 🔜 pendiente · ❌ descartado
+Leyenda: ✅ hecho · ⏳ en curso o esperando algo · ⏸️ en pausa · 🔜 pendiente · ❌ descartado
 
 ---
 
@@ -84,8 +84,16 @@ Aprobado el 5 nov: pantallas nombre/barbero → fecha → hora → confirmar,
 - ✅ Formulario creado en Administrador de WhatsApp → Flows: **`agendar_turno`**,
   id **1493138499295579**, en **borrador**, conectado a la app *Exclusive Barber*,
   dirección `https://exclusivebarber.up.railway.app/flows`. Comprobación de estado: ✅ activo.
-- ⏳ El dueño pega `FLOW_ID` = `1493138499295579` en Railway.
-- ⏳ Probar desde el 3137127100 (modo borrador).
+- ✅ `FLOW_ID` puesto en Railway.
+- ⏸️ **Probado el 5 nov: Meta lo rechaza con el error 139000 «Blocked by
+  Integrity»** («Integrity requirements not met»). No es el código: Meta tiene
+  la cuenta con restricciones para Flows (negocio sin verificar, número
+  re-registrado hace poco, cobros fallidos). Rastreo de Meta: `AFwEvDH1C1nxuyrfm6hj7-m`.
+- ✅ Respaldo: si Meta rechaza el formulario, el bot sigue con las listas. Los
+  clientes no notan nada (además el formulario solo está encendido para el 3137127100).
+- ⏳ **Para destrabarlo:** verificar el negocio en Meta (Configuración del
+  negocio → Centro de seguridad). Si sigue, caso a soporte de Meta con el 139000.
+  Después: volver a probar desde el 3137127100 — no hay que programar nada más.
 - 🔜 Publicar el formulario y pasar a `'todos'` cuando el dueño diga.
   ⚠️ **Meta exige la verificación del negocio para publicar un Flow.** En
   borrador solo sirve para pruebas. Para todos los clientes hay que verificar
@@ -148,7 +156,7 @@ frecuentes. Nunca escribe en la agenda. Permitido por la política de Meta de
 - [ ] Poner **`FLOW_ID`** = `1493138499295579` en Railway.
 - [ ] **Borrar del Escritorio** `FLOW_PRIVATE_KEY.txt` y `FLOW_PRIVATE_KEY_una_linea.txt`.
 - [ ] Poner **`META_APP_SECRET`** en Railway (hoy la firma del webhook está apagada).
-- [ ] Para encender el formulario para todos: **verificar el negocio en Meta**.
+- [ ] **Verificar el negocio en Meta** — destraba el formulario (error 139000) y da más cupo de mensajes.
 
 ## Datos útiles
 
