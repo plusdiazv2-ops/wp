@@ -3,6 +3,8 @@ import path from 'node:path';
 import config from './config/env.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import panelRoutes from './routes/panelRoutes.js';
+import flowRoutes from './routes/flowRoutes.js';
+import { registrarLlavePublica } from './services/flowCifrado.js';
 import cron from 'node-cron';
 import reminderService from './services/reminderService.js';
 import { revisarSalud, resumenDeSalud } from './services/vigilancia.js';
@@ -22,6 +24,9 @@ app.use(express.json({
 
 // Webhook de WhatsApp. Va PRIMERO: el bot manda sobre la web.
 app.use('/', webhookRoutes);
+
+// Formulario de agendar (WhatsApp Flows): Meta lo llama en cada pantalla.
+app.use('/', flowRoutes);
 
 // Panel de administración. Va ANTES de los archivos estáticos para poder
 // mandar directo adentro a quien ya tiene sesión, en vez de mostrarle otra
@@ -85,6 +90,10 @@ if (tareasDeFondo) {
     revisarSalud().catch(error => console.error('Vigilancia falló:', error?.message || error));
   });
   revisarSalud().catch(error => console.error('Vigilancia falló:', error?.message || error));
+
+  // El formulario de agendar necesita que Meta tenga nuestra llave pública.
+  // Se registra aquí, en Railway, para no necesitar el token en otro lado.
+  registrarLlavePublica().catch(error => console.error('Formulario:', error?.message || error));
 
   console.log('🔓 Tareas de fondo ENCENDIDAS: recordatorios y vigilancia.');
 } else {

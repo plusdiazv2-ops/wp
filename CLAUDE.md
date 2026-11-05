@@ -313,6 +313,32 @@ tiene un tope de 30 días por delante, o una semana vacía dejaría el bucle gir
 **Límite:** máximo 2 turnos por día por número de teléfono. Los números de los
 barberos (`adminPhones`) no tienen límite.
 
+### 📝 Formulario de agendar (WhatsApp Flows) — Fase 2, nov 2026
+
+En vez de 6–8 mensajes, una pantalla dentro de WhatsApp: **DATOS** (nombre y
+barbero) → **FECHA** → **HORA** → **LISTO**. Desde octubre de 2026 Meta cobra
+los mensajes normales pasado el cupo de 1.000 al mes: esto ahorra plata.
+
+- **Interruptor** arriba de `messageHandler.js`: `FORMULARIO_AGENDAR` =
+  `'prueba'` (solo `TELEFONOS_PRUEBA_FORMULARIO`) · `'todos'` · `false`.
+  `FORMULARIO_BORRADOR = true` mientras el formulario no esté publicado en Meta.
+- **Sin `FLOW_ID` y `FLOW_PRIVATE_KEY` en Railway queda apagado** y todos
+  agendan con las listas. Escribir **`lista`** abre siempre las listas: es el
+  respaldo para WhatsApp viejos donde el formulario no abre.
+- **Diseño**: `flows/agendar.json` (se pega en Administrador de WhatsApp → Flows).
+  **Lógica**: `services/flowAgendar.js`. **Cifrado**: `services/flowCifrado.js`.
+  **Ruta**: `POST /flows` (421 = no se pudo descifrar, 427 = pase vencido).
+- ⚠️ **Mismas reglas, mismas funciones** que el flujo de listas: fechas de
+  `generateNextAvailableDates`, horas de `getAvailableSlots`, tope de 2,
+  `checkAvailability` y `completeAppointment`. No hay segunda copia de nada.
+- La **llave pública** se le registra a Meta al arrancar en Railway
+  (`registrarLlavePublica`): no hace falta el token en otro lado.
+- ⚠️ El pase (`flow_token`) lleva el teléfono **firmado con una llave distinta
+  a la de las cookies del panel**: si fuera la misma, el pase de un cliente
+  serviría para entrar al panel web. Hay un test que lo vigila.
+- Al cerrar el formulario Meta manda un `nfm_reply`: el bot lo ignora, el turno
+  ya se guardó en la pantalla HORA.
+
 ## Panel del barbero
 
 Se activa cuando el barbero escribe **su contraseña exacta** desde su número
@@ -473,6 +499,7 @@ la hoja: con la C vacía, ese número vería todo.
 | `RESEND_API_KEY` | Las alertas salen solo por WhatsApp (ver abajo) |
 | `ALERTA_CORREO` · `ALERTA_WHATSAPP` · `WABA_ID` | Llevan valor por defecto (los del desarrollador) |
 | `TAREAS_FONDO` | Opcional: `encendidas` / `apagadas` fuerza la traba (ver abajo) |
+| `FLOW_PRIVATE_KEY` · `FLOW_ID` | El formulario de agendar queda apagado: todos usan las listas |
 
 Ninguna tumba el bot al faltar, a propósito: todas avisan en los logs al
 arrancar en vez de fallar en silencio.

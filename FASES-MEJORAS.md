@@ -11,7 +11,7 @@
 |---|---|---|
 | 0 | Blindaje contra fallos silenciosos | ✅ En producción |
 | 1 | Festivos y ajustes | ✅ En producción |
-| 2 | Agendar con formulario de WhatsApp (Flows) | ⏳ Esperando aprobación |
+| 2 | Agendar con formulario de WhatsApp (Flows) | ⏳ Construido · en pruebas con Prueba |
 | 3 | Base de datos real (salir de Google Sheets) | 🔜 Por decidir |
 | 4 | IA de rescate | 🔜 Pendiente |
 | 5 | Crecimiento (campañas, reseñas, pagos) | 🔜 Pendiente |
@@ -70,19 +70,21 @@ Desplegada el **5 de noviembre de 2026**.
 ## Fase 2 — Agendar con formulario de WhatsApp (Flows) ⏳
 
 **Por qué:** desde el 1 de octubre de 2026 Meta cobra los mensajes normales
-pasados 1.000 al mes. Hoy agendar son 6–8 mensajes; con un formulario, 3.
+pasados 1.000 al mes. Hoy agendar son 6–8 mensajes; con el formulario, 3.
 
-**Plan propuesto (esperando aprobación):**
-- Una pantalla dentro de WhatsApp: nombre → barbero → fecha → hora → confirmar.
-  Horas libres consultadas en vivo; se re-verifica antes de guardar.
-- Cifrado que exige Meta, sin instalar nada. La llave privada va en Railway.
-- Respaldo: escribir **«lista»** abre el flujo de siempre (WhatsApp viejo).
-- Primero solo con **Prueba**; se enciende para todos con un interruptor.
+Aprobado el 5 nov: pantallas nombre/barbero → fecha → hora → confirmar,
+«lista» como respaldo, y arrancar **solo con Prueba** (número 3137127100).
 
-**Decisiones pendientes:**
-1. ¿Orden de pantallas nombre → barbero → fecha → hora → confirmar?
-2. ¿«lista» como respaldo?
-3. ¿Arrancar solo con Prueba?
+- ✅ Código construido y probado (225 tests + simulación completa): cifrado,
+  ruta `/flows`, las 4 pantallas con las mismas reglas del flujo de listas,
+  «lista» como respaldo, interruptor `FORMULARIO_AGENDAR = 'prueba'`.
+- ⏳ Desplegar (el formulario queda apagado hasta tener las dos variables).
+- ⏳ El dueño pega `FLOW_PRIVATE_KEY` en Railway (archivo en el Escritorio, nunca en el chat).
+- ⏳ Crear el formulario en Administrador de WhatsApp → Flows, con `flows/agendar.json`
+  y la dirección `https://exclusivebarber.up.railway.app/flows`.
+- ⏳ El dueño pega `FLOW_ID` en Railway.
+- ⏳ Probar desde el 3137127100 (modo borrador).
+- 🔜 Publicar el formulario y pasar a `'todos'` cuando el dueño diga.
 
 ## Fase 3 — Base de datos real 🔜
 
