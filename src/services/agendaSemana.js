@@ -1,3 +1,4 @@
+import { festivoDe } from '../config/festivos.js';
 import { getDailyScheduleByBarber } from './googleSheetsService.js';
 import { turnoAMinutos, NOMBRES_DIAS } from '../config/barbers.js';
 import { contactoVisible } from '../config/contacto.js';
@@ -73,6 +74,8 @@ export function diasDeLaSemana(lunesISO, hoyISO = hoyEnBogota()) {
       mes: MESES[d.getMonth()],
       esHoy: fecha === hoyISO,
       esPasado: fecha < hoyISO,
+      // Nombre del festivo, o null. Solo se marca: se atiende normal.
+      festivo: festivoDe(fecha),
     };
   });
 }

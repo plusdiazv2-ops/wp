@@ -14,6 +14,7 @@ import appendToSheet, {
 } from './googleSheetsService.js';
 import config from '../config/env.js';
 import { partirEnJornadas, nombreVisible } from '../config/barbers.js';
+import { festivoDe } from '../config/festivos.js';
 import { remitenteDe, usuarioDe, contactoVisible } from '../config/contacto.js';
 import { puedeEntrar, adminsConBarberos, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
@@ -1573,12 +1574,16 @@ Elige otro barbero:`
         ? '1 turno libre'
         : `${date.availableCount} turnos libres`;
 
+      // Un festivo se atiende normal; solo se avisa. Va en la descripción
+      // porque el título tiene tope de 24 caracteres.
+      const festivo = festivoDe(date.value) ? ' · 🇨🇴 Festivo' : '';
+
       return {
         id: `fecha_${date.value}`,
         title: `${index + 1}. ${this.formatShortDate(date.value)}`,
         description: date.hasAvailability
-          ? `${date.label} · ${turnos}`
-          : `${date.label} · ❌ sin cupos`,
+          ? `${date.label}${festivo} · ${turnos}`
+          : `${date.label}${festivo} · ❌ sin cupos`,
       };
     });
 
@@ -1959,7 +1964,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
       await whatsappService.sendMessage(
         to,
-        this.formatDailySchedule(schedule, viewedName, rawOption)
+        this.formatDailySchedule(schedule, viewedName, rawOption, date)
       );
 
       await this.sendBarberAdminMenu(to, viewedName);
@@ -1972,7 +1977,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
       await whatsappService.sendMessage(
         to,
-        this.formatDailySchedule(schedule, viewedName, "hoy")
+        this.formatDailySchedule(schedule, viewedName, "hoy", today)
       );
 
       await this.sendBarberAdminMenu(to, viewedName);
@@ -1985,7 +1990,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
       await whatsappService.sendMessage(
         to,
-        this.formatDailySchedule(schedule, viewedName, "mañana")
+        this.formatDailySchedule(schedule, viewedName, "mañana", tomorrow)
       );
 
       await this.sendBarberAdminMenu(to, viewedName);
@@ -2125,12 +2130,17 @@ Te recordamos tu turno en *Exclusive Barber* 💈
     return `${year}-${month}-${day}`;
   }
 
-  formatDailySchedule(schedule, barberName, label) {
+  formatDailySchedule(schedule, barberName, label, fecha = null) {
+    // Un festivo se atiende normal: solo se le avisa al barbero, por si no
+    // va a trabajar y quiere bloquear el día desde el panel web.
+    const festivo = fecha ? festivoDe(fecha) : null;
+    const aviso = festivo ? `🇨🇴 *Festivo:* ${festivo}\n\n` : '';
+
     if (!schedule.length) {
-      return `💈 Agenda ${nombreVisible(barberName)} - ${label}\n\nNo hay horarios configurados para este día.`;
+      return `💈 Agenda ${nombreVisible(barberName)} - ${label}\n\n${aviso}No hay horarios configurados para este día.`;
     }
 
-    let message = `💈 Agenda ${nombreVisible(barberName)} - ${label}\n\n`;
+    let message = `💈 Agenda ${nombreVisible(barberName)} - ${label}\n\n${aviso}`;
 
     schedule.forEach(item => {
       if (item.status === 'ocupado') {
