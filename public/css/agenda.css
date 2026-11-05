@@ -387,3 +387,17 @@ thead th.es-pasado { opacity: 0.5; }
 /* Botón de alerta de prueba: discreto, al final, solo para el admin principal */
 .agenda__prueba { margin-top: 1rem; }
 .agenda__prueba[hidden] { display: none; }
+
+/* Festivo: se atiende normal, solo se marca para que el barbero lo vea. */
+.dia__festivo {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(224, 168, 106, 0.18);
+  color: #e0a86a;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

@@ -111,6 +111,7 @@ function pintarTabla({ horas, dias }) {
     <th class="${d.esHoy ? 'es-hoy' : ''}${d.esPasado ? ' es-pasado' : ''}">
       <span class="dia__corto">${d.corto}</span>
       <span class="dia__numero">${d.numero}</span>
+      ${d.festivo ? `<span class="dia__festivo" title="${d.festivo}">Festivo</span>` : ''}
       ${botonesDelDia(d, horas)}
     </th>`).join('');
 
