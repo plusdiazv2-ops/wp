@@ -383,3 +383,7 @@ thead th.es-pasado { opacity: 0.5; }
   background: rgba(120, 200, 140, 0.1);
   color: #b9e6c4;
 }
+
+/* Botón de alerta de prueba: discreto, al final, solo para el admin principal */
+.agenda__prueba { margin-top: 1rem; }
+.agenda__prueba[hidden] { display: none; }
