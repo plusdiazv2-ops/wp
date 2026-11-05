@@ -3,7 +3,7 @@
 > Control de las mejoras del bot. **Se actualiza con cada cambio.**
 > Detalle técnico de cada cosa: `CLAUDE.md`. Historia completa: `git log`.
 >
-> Última actualización: **5 de noviembre de 2026**
+> Última actualización: **5 de noviembre de 2026** (Fase 2 en pruebas)
 
 ## Resumen
 
@@ -78,13 +78,18 @@ Aprobado el 5 nov: pantallas nombre/barbero → fecha → hora → confirmar,
 - ✅ Código construido y probado (225 tests + simulación completa): cifrado,
   ruta `/flows`, las 4 pantallas con las mismas reglas del flujo de listas,
   «lista» como respaldo, interruptor `FORMULARIO_AGENDAR = 'prueba'`.
-- ⏳ Desplegar (el formulario queda apagado hasta tener las dos variables).
-- ⏳ El dueño pega `FLOW_PRIVATE_KEY` en Railway (archivo en el Escritorio, nunca en el chat).
-- ⏳ Crear el formulario en Administrador de WhatsApp → Flows, con `flows/agendar.json`
-  y la dirección `https://exclusivebarber.up.railway.app/flows`.
-- ⏳ El dueño pega `FLOW_ID` en Railway.
+- ✅ Desplegado el 5 nov (apagado hasta tener las dos variables).
+- ✅ `FLOW_PRIVATE_KEY` en Railway, en una sola línea (base64): pegada en varias
+  líneas, Railway la dañaba. Meta ya tiene la llave pública.
+- ✅ Formulario creado en Administrador de WhatsApp → Flows: **`agendar_turno`**,
+  id **1493138499295579**, en **borrador**, conectado a la app *Exclusive Barber*,
+  dirección `https://exclusivebarber.up.railway.app/flows`. Comprobación de estado: ✅ activo.
+- ⏳ El dueño pega `FLOW_ID` = `1493138499295579` en Railway.
 - ⏳ Probar desde el 3137127100 (modo borrador).
 - 🔜 Publicar el formulario y pasar a `'todos'` cuando el dueño diga.
+  ⚠️ **Meta exige la verificación del negocio para publicar un Flow.** En
+  borrador solo sirve para pruebas. Para todos los clientes hay que verificar
+  el negocio en Meta Business (Configuración del negocio → Centro de seguridad).
 
 ## Fase 3 — Base de datos real 🔜
 
@@ -140,6 +145,10 @@ frecuentes. Nunca escribe en la agenda. Permitido por la política de Meta de
       (las alertas por WhatsApp solo llegan dentro de 24 h).
 - [ ] **Apagar el barbero de prueba** cuando terminen las pruebas (los clientes lo ven).
 - [ ] Mirar el gasto en **Administrador de WhatsApp → Estadísticas** para decidir la Fase 2.
+- [ ] Poner **`FLOW_ID`** = `1493138499295579` en Railway.
+- [ ] **Borrar del Escritorio** `FLOW_PRIVATE_KEY.txt` y `FLOW_PRIVATE_KEY_una_linea.txt`.
+- [ ] Poner **`META_APP_SECRET`** en Railway (hoy la firma del webhook está apagada).
+- [ ] Para encender el formulario para todos: **verificar el negocio en Meta**.
 
 ## Datos útiles
 
