@@ -5,6 +5,7 @@ import webhookRoutes from './routes/webhookRoutes.js';
 import panelRoutes from './routes/panelRoutes.js';
 import cron from 'node-cron';
 import reminderService from './services/reminderService.js';
+import { revisarSalud, resumenDeSalud } from './services/vigilancia.js';
 
 const app = express();
 
@@ -40,14 +41,58 @@ app.get('/estado', (req, res) => {
   res.json({ ok: true, servicio: 'barber-bot' });
 });
 
-/**
- * 🔔 CRON JOB
- * Se ejecuta cada 5 minutos
- */
-cron.schedule('*/5 * * * *', async () => {
-  console.log('⏰ Revisando recordatorios...');
-  await reminderService.processReminders();
+// Salud de verdad: número conectado, app suscrita y webhook recibiendo.
+// 503 si algo está mal, para que un monitor externo (UptimeRobot) avise.
+// No consulta a Meta en cada visita: muestra la última revisión.
+// `revisado: null` en Railway = las tareas de fondo NO están corriendo.
+app.get('/salud', (req, res) => {
+  const salud = resumenDeSalud();
+  res.status(salud.ok ? 200 : 503).json(salud);
 });
+
+/**
+ * 🔒 TRABA DE TAREAS DE FONDO
+ *
+ * Recordatorios y vigilancia corren SOLO en Railway, que se reconoce por sus
+ * propias variables. Una copia en otro computador con el .env de producción
+ * mandaría recordatorios reales a clientes reales, repetidos.
+ *
+ * Se puede forzar con TAREAS_FONDO=encendidas o =apagadas.
+ */
+const enRailway = Boolean(
+  process.env.RAILWAY_ENVIRONMENT_NAME
+  || process.env.RAILWAY_ENVIRONMENT
+  || process.env.RAILWAY_PROJECT_ID
+  || process.env.RAILWAY_SERVICE_ID
+);
+
+const tareasDeFondo = process.env.TAREAS_FONDO
+  ? process.env.TAREAS_FONDO === 'encendidas'
+  : enRailway;
+
+if (tareasDeFondo) {
+  /**
+   * 🔔 CRON JOB
+   * Se ejecuta cada 5 minutos
+   */
+  cron.schedule('*/5 * * * *', async () => {
+    console.log('⏰ Revisando recordatorios...');
+    await reminderService.processReminders();
+  });
+
+  // 🩺 Vigilancia: cada 15 minutos, y una vez al arrancar.
+  cron.schedule('*/15 * * * *', () => {
+    revisarSalud().catch(error => console.error('Vigilancia falló:', error?.message || error));
+  });
+  revisarSalud().catch(error => console.error('Vigilancia falló:', error?.message || error));
+
+  console.log('🔓 Tareas de fondo ENCENDIDAS: recordatorios y vigilancia.');
+} else {
+  console.warn(
+    '🔒 Tareas de fondo APAGADAS: no se mandan recordatorios ni se vigila. ' +
+    'Es lo correcto fuera de Railway. En Railway, revisa TAREAS_FONDO.'
+  );
+}
 
 /**
  * 🚀 Iniciar servidor

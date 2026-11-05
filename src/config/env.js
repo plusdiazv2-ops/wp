@@ -44,6 +44,10 @@ export default {
   ALERTA_CORREO: process.env.ALERTA_CORREO || 'esdege021@gmail.com',
   ALERTA_WHATSAPP: process.env.ALERTA_WHATSAPP || '573137127100',
 
+  // Cuenta de WhatsApp Business (WABA), para que la vigilancia revise que la
+  // app siga suscrita. No es secreto: sin el token no sirve de nada.
+  WABA_ID: process.env.WABA_ID || '26475533715448133',
+
   API_TOKEN: process.env.API_TOKEN,
   PORT: process.env.PORT,
   BUSINESS_PHONE: process.env.BUSINESS_PHONE,

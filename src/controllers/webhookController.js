@@ -3,11 +3,16 @@ import messageHandler from '../services/messageHandler.js';
 import { esRepetido, esDemasiadoViejo } from '../services/entregasMeta.js';
 import { alertaPorEntregaFallida } from '../services/alertas.js';
 import { recordatorioFallido } from '../services/reminderService.js';
+import { anotarWebhook } from '../services/vigilancia.js';
 
 class WebhookController {
   async handleIncoming(req, res) {
     try {
       console.log("📩 WEBHOOK COMPLETO:", JSON.stringify(req.body, null, 2));
+
+      // Para la vigilancia: si esto deja de pasar en horario de atención,
+      // Meta dejó de mandarnos cosas.
+      anotarWebhook();
 
       const value = req.body.entry?.[0]?.changes?.[0]?.value;
 
