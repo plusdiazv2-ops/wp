@@ -2,6 +2,7 @@ import config from '../config/env.js';
 import messageHandler from '../services/messageHandler.js';
 import { esRepetido, esDemasiadoViejo } from '../services/entregasMeta.js';
 import { alertaPorEntregaFallida } from '../services/alertas.js';
+import { recordatorioFallido } from '../services/reminderService.js';
 
 class WebhookController {
   async handleIncoming(req, res) {
@@ -31,6 +32,11 @@ class WebhookController {
       for (const estado of value?.statuses || []) {
         alertaPorEntregaFallida(estado).catch(error =>
           console.error('No se pudo mandar la alerta:', error?.message || error)
+        );
+
+        // Si era un recordatorio, su fila vuelve a "No": no llegó.
+        recordatorioFallido(estado).catch(error =>
+          console.error('No se pudo desmarcar el recordatorio:', error?.message || error)
         );
       }
 

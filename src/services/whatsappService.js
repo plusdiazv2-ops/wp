@@ -163,7 +163,7 @@ class WhatsAppService {
       },
     };
 
-    await sendToWhatsApp(data);
+    return sendToWhatsApp(data);
   }
 }
 
