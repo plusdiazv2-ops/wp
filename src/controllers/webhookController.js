@@ -1,11 +1,18 @@
 import config from '../config/env.js';
 import messageHandler from '../services/messageHandler.js';
 import { esRepetido, esDemasiadoViejo } from '../services/entregasMeta.js';
+import { alertaPorEntregaFallida } from '../services/alertas.js';
+import { recordatorioFallido } from '../services/reminderService.js';
+import { anotarWebhook } from '../services/vigilancia.js';
 
 class WebhookController {
   async handleIncoming(req, res) {
     try {
       console.log("📩 WEBHOOK COMPLETO:", JSON.stringify(req.body, null, 2));
+
+      // Para la vigilancia: si esto deja de pasar en horario de atención,
+      // Meta dejó de mandarnos cosas.
+      anotarWebhook();
 
       const value = req.body.entry?.[0]?.changes?.[0]?.value;
 
@@ -23,6 +30,19 @@ class WebhookController {
 
       if (status) {
         console.log("📬 STATUS WHATSAPP:", JSON.stringify(status, null, 2));
+      }
+
+      // 🚨 Meta no entregó algo que el bot dio por enviado. Sin await: el
+      // webhook ya respondió, y una alerta lenta no puede frenar nada.
+      for (const estado of value?.statuses || []) {
+        alertaPorEntregaFallida(estado).catch(error =>
+          console.error('No se pudo mandar la alerta:', error?.message || error)
+        );
+
+        // Si era un recordatorio, su fila vuelve a "No": no llegó.
+        recordatorioFallido(estado).catch(error =>
+          console.error('No se pudo desmarcar el recordatorio:', error?.message || error)
+        );
       }
 
       if (!message) return;

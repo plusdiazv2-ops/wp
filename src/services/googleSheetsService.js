@@ -1237,6 +1237,48 @@ export const markReminderAsSent = async (rowNumber) => {
   }
 };
 
+/**
+ * ¿Esta fila sigue siendo el recordatorio que se marcó? Mismo teléfono
+ * (columna E) y la J en "Sí". Si no, alguien movió filas a mano y no se toca.
+ */
+export const esElRecordatorioMarcado = (fila, telefono) =>
+  Boolean(String(telefono || '').trim())
+  && igual(fila?.[4], telefono)
+  && (igual(fila?.[9], 'sí') || igual(fila?.[9], 'si'));
+
+/**
+ * Meta rechazó un recordatorio que ya estaba marcado "Sí": se devuelve a
+ * "No", para que la hoja diga la verdad y el cron lo reintente si todavía
+ * está dentro de su ventana de 55–65 minutos.
+ *
+ * Igual que al cancelar: se relee la fila y se comprueba antes de escribir.
+ */
+export const desmarcarRecordatorio = async (rowNumber, telefono) => {
+  const authClient = await getAuthClient();
+
+  const comprobacion = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `'barber'!A${rowNumber}:J${rowNumber}`,
+    auth: authClient,
+  });
+
+  if (!esElRecordatorioMarcado(comprobacion.data.values?.[0], telefono)) {
+    console.error(`⚠️ La fila ${rowNumber} ya no es el recordatorio de ${telefono}. No se toca.`);
+    return { ok: false, motivo: 'la_hoja_cambio' };
+  }
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `'barber'!J${rowNumber}`,
+    valueInputOption: 'RAW',
+    resource: { values: [['No']] },
+    auth: authClient,
+  });
+
+  limpiarCacheTurnos();
+  return { ok: true };
+};
+
 export const getAppointmentsByBarberAndDate = async (barber, date) => {
   try {
     const authClient = await getAuthClient();

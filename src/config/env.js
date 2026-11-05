@@ -37,6 +37,17 @@ export default {
   PASSWORD_LADINO: process.env.PASSWORD_LADINO,
   PASSWORD_PRUEBA: process.env.PASSWORD_PRUEBA,
 
+  // Alertas de fallos silenciosos (services/alertas.js). La clave de Resend
+  // es secreta y va solo en Railway; sin ella las alertas salen solo por
+  // WhatsApp. El correo y el número llevan respaldo: son los del desarrollador.
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  ALERTA_CORREO: process.env.ALERTA_CORREO || 'esdege021@gmail.com',
+  ALERTA_WHATSAPP: process.env.ALERTA_WHATSAPP || '573137127100',
+
+  // Cuenta de WhatsApp Business (WABA), para que la vigilancia revise que la
+  // app siga suscrita. No es secreto: sin el token no sirve de nada.
+  WABA_ID: process.env.WABA_ID || '26475533715448133',
+
   API_TOKEN: process.env.API_TOKEN,
   PORT: process.env.PORT,
   BUSINESS_PHONE: process.env.BUSINESS_PHONE,
