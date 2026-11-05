@@ -24,10 +24,13 @@ const TAG = 16;   // bytes del sello de AES-GCM, al final de los datos
 /** La llave privada desde la variable. Railway a veces guarda los saltos como "\n". */
 export function llavePrivada(pem = config.FLOW_PRIVATE_KEY) {
   if (!pem) return null;
-  const texto = String(pem).includes('-----BEGIN')
-    ? String(pem).replace(/\\n/g, '\n')
-    : null;
-  if (!texto) return null;
+  // Se aceptan pegadas con comillas alrededor o con los saltos como "\n".
+  const limpio = String(pem).trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
+  const texto = limpio.includes('-----BEGIN') ? limpio : null;
+  if (!texto) {
+    console.error('⚠️ FLOW_PRIVATE_KEY no parece una llave: debe empezar con la línea BEGIN PRIVATE KEY del archivo.');
+    return null;
+  }
 
   try {
     return crypto.createPrivateKey(texto);
@@ -89,14 +92,25 @@ export function cifrarRespuesta(respuesta, aes, iv) {
  * arrancar en Railway: así no hace falta el token en ningún computador.
  */
 export async function registrarLlavePublica() {
+  if (!config.FLOW_PRIVATE_KEY) {
+    console.log('🔐 Formulario: sin FLOW_PRIVATE_KEY, no hay llave que registrar (formulario apagado).');
+    return;
+  }
+
   const publica = llavePublicaPem();
-  if (!publica) return;
+  if (!publica) {
+    console.error('⚠️ Formulario: FLOW_PRIVATE_KEY está puesta pero no es una llave válida. No se registró nada.');
+    return;
+  }
 
   const url = `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/whatsapp_business_encryption`;
   const headers = { Authorization: `Bearer ${config.API_TOKEN}` };
 
   try {
-    const actual = (await axios.get(url, { headers, timeout: 15000 })).data?.data?.[0]?.business_public_key;
+    // Meta la devuelve directo ({ business_public_key, ..._signature_status }),
+    // no dentro de una lista. Se aceptan las dos formas por si cambia.
+    const respuesta = (await axios.get(url, { headers, timeout: 15000 })).data || {};
+    const actual = respuesta.business_public_key ?? respuesta.data?.[0]?.business_public_key;
 
     if (String(actual || '').trim() === publica.trim()) {
       console.log('🔐 Formulario: Meta ya tiene nuestra llave pública.');
