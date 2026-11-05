@@ -36,9 +36,9 @@ const ultimas = new Map();
 const idsDeAlertas = new Set();
 
 /** ¿Toca avisar de esto, o ya se avisó hace poco? Marca el momento si toca. */
-export function debeAvisar(clave, ahora = Date.now()) {
+export function debeAvisar(clave, ahora = Date.now(), freno = FRENO_MS) {
   const ultima = ultimas.get(clave);
-  if (ultima && ahora - ultima < FRENO_MS) return false;
+  if (ultima && ahora - ultima < freno) return false;
 
   ultimas.set(clave, ahora);
   return true;
@@ -109,8 +109,8 @@ async function porWhatsApp(asunto, texto) {
  * `clave` agrupa las alertas para el freno: dos fallos con la misma clave en
  * menos de 6 horas mandan una sola alerta.
  */
-export async function enviarAlerta({ clave, asunto, texto }) {
-  if (!debeAvisar(clave)) {
+export async function enviarAlerta({ clave, asunto, texto, freno = FRENO_MS }) {
+  if (!debeAvisar(clave, Date.now(), freno)) {
     console.log(`🔕 Alerta frenada (ya se avisó hace poco): ${clave}`);
     return { enviada: false };
   }
@@ -125,7 +125,7 @@ export async function enviarAlerta({ clave, asunto, texto }) {
   const como = (r) => (r.status === 'fulfilled' ? r.value : `falló: ${r.reason?.message || r.reason}`);
   console.log(`🚨 Alerta [${clave}] → correo: ${como(correo)} · WhatsApp: ${como(whatsapp)}`);
 
-  return { enviada: true };
+  return { enviada: true, correo: como(correo), whatsapp: como(whatsapp) };
 }
 
 /**

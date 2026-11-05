@@ -72,6 +72,7 @@ async function cargar({ fresco = false, deFondo = false } = {}) {
   estado = { barbero: datos.barbero, lunes: datos.lunes };
 
   pintarSelector(datos);
+  $('alerta-prueba').hidden = !datos.esPrincipal;
   $('rotulo').textContent = datos.rotulo;
   $('anterior').dataset.desde = datos.semanaAnterior;
   $('siguiente').dataset.desde = datos.semanaSiguiente;
@@ -401,6 +402,32 @@ function salirDeSeleccion() {
   tabla.querySelectorAll('.celda--elegida').forEach(c => c.classList.remove('celda--elegida'));
   pintarBarra();
 }
+
+/* ── Alerta de prueba (solo admin principal) ───────────────
+   Confirma que el correo y el WhatsApp de las alertas llegan antes de que
+   haga falta de verdad. El servidor vuelve a comprobar quién la pide. */
+$('alerta-prueba').addEventListener('click', async (e) => {
+  const boton = e.currentTarget;
+  boton.disabled = true;
+
+  try {
+    const respuesta = await fetch('/panel/api/alerta-prueba', {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (respuesta.status === 401) { location.href = '/panel/'; return; }
+
+    const datos = await respuesta.json();
+
+    if (!datos.ok) mostrarAviso(datos.error || 'No se pudo mandar la prueba.');
+    else mostrarAviso(`Prueba mandada → correo: ${datos.correo} · WhatsApp: ${datos.whatsapp}`, 'ok');
+  } catch {
+    mostrarAviso('No se pudo conectar. Revisa tu internet.');
+  } finally {
+    boton.disabled = false;
+  }
+});
 
 $('seleccionar').addEventListener('click', () => {
   if (seleccionando) return salirDeSeleccion();

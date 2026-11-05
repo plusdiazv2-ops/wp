@@ -6,6 +6,7 @@ import {
   puedeEntrar,
   barberosPermitidos,
   adminsConBarberos,
+  esAdminPrincipal,
   normalizarTelefono,
   aNumeroWhatsApp,
   generarCodigo,
@@ -24,6 +25,7 @@ import {
   horariosDeBarbero,
 } from '../services/googleSheetsService.js';
 import { requiereSesion } from '../middlewares/requiereSesion.js';
+import { enviarAlerta } from '../services/alertas.js';
 import { esTurnoValido, NOMBRES_DIAS, NOMBRES_VISIBLES } from '../config/barbers.js';
 import { revisarSemana } from '../services/validarHorarios.js';
 import { SheetsUnavailableError } from '../services/googleSheetsService.js';
@@ -255,6 +257,9 @@ router.get('/panel/api/agenda', requiereSesion, async (req, res) => {
       // Cómo se llama cada uno para la gente. El `value` del selector sigue
       // siendo el nombre interno: es lo que se guarda en la hoja.
       nombres: NOMBRES_VISIBLES,
+      // Solo para mostrar el botón de alerta de prueba. La ruta lo vuelve a
+      // comprobar: esto es comodidad, no protección.
+      esPrincipal: esAdminPrincipal(req.admin.telefono),
       lunes,
       semanaAnterior: sumarDias(lunes, -7),
       semanaSiguiente: sumarDias(lunes, 7),
@@ -472,6 +477,34 @@ router.post('/panel/api/horarios', requiereSesion, async (req, res) => {
   } catch (error) {
     return responderFallo(res, error, 'guardar horarios');
   }
+});
+
+/**
+ * Alerta de prueba: confirma que el correo (Resend) y el WhatsApp de las
+ * alertas llegan, ANTES de que haga falta de verdad. Solo admin principal.
+ */
+router.post('/panel/api/alerta-prueba', requiereSesion, async (req, res) => {
+  if (!esAdminPrincipal(req.admin.telefono)) {
+    return res.status(403).json({ ok: false, error: 'Solo el administrador principal puede probar las alertas.' });
+  }
+
+  const resultado = await enviarAlerta({
+    clave: 'prueba',
+    freno: 60 * 1000,
+    asunto: 'Alerta de prueba',
+    texto: [
+      'Esto es una prueba pedida desde el panel.',
+      'Si te llegó, las alertas del bot funcionan por este camino.',
+      '',
+      `Pedida por: ${req.admin.telefono}`,
+    ].join(String.fromCharCode(10)),
+  });
+
+  if (!resultado.enviada) {
+    return res.status(429).json({ ok: false, error: 'Ya mandaste una prueba hace menos de un minuto. Espera un momento.' });
+  }
+
+  return res.json({ ok: true, correo: resultado.correo, whatsapp: resultado.whatsapp });
 });
 
 /** La pantalla de horarios. */
