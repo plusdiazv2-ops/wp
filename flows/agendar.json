@@ -3,8 +3,8 @@
   "data_api_version": "3.0",
   "routing_model": {
     "DATOS": ["FECHA"],
-    "FECHA": ["HORA", "DATOS"],
-    "HORA": ["LISTO", "FECHA"],
+    "FECHA": ["HORA"],
+    "HORA": ["LISTO"],
     "LISTO": []
   },
   "screens": [
