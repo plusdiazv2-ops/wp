@@ -347,6 +347,15 @@ Muestra 🟢 libre / 🔴 ocupado con nombre y teléfono del cliente (sin el 57)
 | H | Fecha registro | ISO | timestamp de creación |
 | I | FechaHoraTurno | `2026-05-02 15:40:00` | lo usa el recordatorio |
 | J | RecordatorioEnviado | `Sí` / `No` | |
+| K | Usuario | `anagomez` | @usuario de WhatsApp, sin la arroba. **Solo para mostrar** (desde nov 2026) |
+
+**La K** la llena el bot al confirmar un turno, si el cliente tiene nombre de
+usuario (Meta lo manda en `contacts[].profile.username`). ⚠️ **El cliente lo
+puede cambiar cuando quiera: nunca se usa como llave**, la llave sigue siendo
+la E. Si el cliente escondió su número, el panel web, la agenda del barbero
+por WhatsApp y el aviso de turno nuevo muestran `@usuario` en vez de "sin
+número" (`contactoVisible()`, en `config/contacto.js`). Las filas viejas y los
+bloqueos la tienen vacía, y está bien así.
 
 ⚠️ **Las columnas A y C se comparan como texto exacto.** Si Google Sheets
 convierte una de esas celdas a formato fecha/hora automáticamente, la

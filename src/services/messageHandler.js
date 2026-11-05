@@ -14,7 +14,7 @@ import appendToSheet, {
 } from './googleSheetsService.js';
 import config from '../config/env.js';
 import { partirEnJornadas, nombreVisible } from '../config/barbers.js';
-import { remitenteDe, telefonoVisible } from '../config/contacto.js';
+import { remitenteDe, usuarioDe, contactoVisible } from '../config/contacto.js';
 import { puedeEntrar, adminsConBarberos, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
 
@@ -555,6 +555,7 @@ class MessageHandler {
 
   async handleIncomingMessage(message, senderInfo) {
     try {
+      this.anotarUsuario(remitenteDe(message, senderInfo), senderInfo);
       await this.procesarMensaje(message, senderInfo);
     } catch (error) {
       if (!(error instanceof SheetsUnavailableError)) throw error;
@@ -835,6 +836,19 @@ class MessageHandler {
     await whatsappService.sendMessage(to, mensajeCodigo(codigo));
   }
 
+  /**
+   * Guarda el @usuario de WhatsApp de quien escribe, si tiene uno, para
+   * ponerlo en la columna K al confirmar el turno. Va aparte del estado del
+   * flujo porque ese se borra y se crea en varios pasos.
+   */
+  anotarUsuario(to, senderInfo) {
+    const usuario = usuarioDe(senderInfo);
+    if (!to || !usuario) return;
+
+    this.usuariosWhatsApp ??= {};
+    this.usuariosWhatsApp[to] = usuario;
+  }
+
   getSenderName(senderInfo) {
     // `username` es el nombre de usuario de quien escondió su número. Va
     // antes que el identificador: nunca se le saluda a nadie con un código.
@@ -961,7 +975,9 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
       "Confirmado",
       new Date().toISOString(),
       appointmentDateTime,
-      "No"
+      "No",
+      // K: el @usuario de WhatsApp, si tiene. Solo para mostrar en el panel.
+      this.usuariosWhatsApp?.[to] || ""
     ];
 
     await appendToSheet(userData);
@@ -969,7 +985,8 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
 
     await this.notifyBarberNewAppointment({
       ...appointment,
-      phone: to
+      phone: to,
+      usuario: this.usuariosWhatsApp?.[to] || ""
     });
 
     console.log("Notificación al barbero enviada.");
@@ -1838,7 +1855,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
           appointment.time || "Hora",                            // {{4}} Hora
           // Quien escondió su número no tiene teléfono que mostrar: se le
           // dice al barbero con todas las letras, no con el código interno.
-          telefonoVisible(appointment.phone) || "Teléfono"       // {{5}} Teléfono
+          contactoVisible(appointment.phone, appointment.usuario) || "Teléfono" // {{5}} Teléfono o @usuario
         ]
       );
 
@@ -2028,7 +2045,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
 
     appointments.forEach((appointment, index) => {
       message += `${index + 1}. ${appointment.time} - ${appointment.name}\n`;
-      message += `📱 ${telefonoVisible(appointment.phone)}\n\n`;
+      message += `📱 ${contactoVisible(appointment.phone, appointment.usuario)}\n\n`;
     });
 
     return message.trim();
@@ -2118,7 +2135,7 @@ Te recordamos tu turno en *Exclusive Barber* 💈
     schedule.forEach(item => {
       if (item.status === 'ocupado') {
         message += `🔴 ${item.time} - ${item.name}\n`;
-        message += `📱 ${telefonoVisible(item.phone)}\n\n`;
+        message += `📱 ${contactoVisible(item.phone, item.usuario)}\n\n`;
       } else {
         message += `🟢 ${item.time} - Libre\n`;
       }
