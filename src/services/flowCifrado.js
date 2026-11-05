@@ -26,7 +26,16 @@ export function llavePrivada(pem = config.FLOW_PRIVATE_KEY) {
   if (!pem) return null;
   // Se aceptan pegadas con comillas alrededor o con los saltos como "\n".
   const limpio = String(pem).trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '\n');
-  const texto = limpio.includes('-----BEGIN') ? limpio : null;
+
+  // También en UNA línea (base64 del archivo entero): es lo más seguro para
+  // pegar en Railway, que a veces daña los textos de varias líneas.
+  const desdeBase64 = limpio.includes('-----BEGIN')
+    ? null
+    : Buffer.from(limpio.replace(/\s+/g, ''), 'base64').toString('utf8');
+
+  const texto = limpio.includes('-----BEGIN')
+    ? limpio
+    : (desdeBase64?.includes('-----BEGIN') ? desdeBase64 : null);
   if (!texto) {
     console.error('⚠️ FLOW_PRIVATE_KEY no parece una llave: debe empezar con la línea BEGIN PRIVATE KEY del archivo.');
     return null;
