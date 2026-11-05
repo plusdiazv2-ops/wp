@@ -68,3 +68,29 @@ export function telefonoVisible(identificador) {
 
   return id.replace(/^57/, '');
 }
+
+/**
+ * El @usuario de WhatsApp del cliente, sin la arroba, o '' si no tiene.
+ *
+ * Meta lo manda en contacts[].profile.username SOLO si el cliente activó un
+ * nombre de usuario. ⚠️ El cliente lo puede cambiar cuando quiera: sirve para
+ * MOSTRAR, nunca como llave. La llave sigue siendo la columna E.
+ */
+export function usuarioDe(contacto) {
+  return String(contacto?.profile?.username ?? '').trim().replace(/^@/, '');
+}
+
+/**
+ * Lo que ve un humano para contactar al cliente: el teléfono si lo hay; si
+ * escondió su número y conocemos su @usuario, el @usuario (con él se le puede
+ * buscar en WhatsApp); si no, "sin número (usuario de WhatsApp)".
+ */
+export function contactoVisible(identificador, usuario) {
+  const nombreDeUsuario = String(usuario ?? '').trim().replace(/^@/, '');
+
+  if (esUsuarioSinNumero(String(identificador ?? '').trim()) && nombreDeUsuario) {
+    return `@${nombreDeUsuario}`;
+  }
+
+  return telefonoVisible(identificador);
+}

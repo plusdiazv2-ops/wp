@@ -356,7 +356,8 @@ export const horariosDeBarbero = async (barbero) => {
 async function addRowSheet(auth, values) {
   const request = {
     spreadsheetId: SPREADSHEET_ID,
-    range: "'barber'!A:J",
+    // Hasta la K: el turno de un cliente lleva su @usuario al final.
+    range: "'barber'!A:K",
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     resource: {
@@ -421,7 +422,8 @@ async function getSheetData(auth, { fresco = false } = {}) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: "'barber'!A:J",
+      // Hasta la K: ahí va el @usuario de WhatsApp (solo para mostrar).
+      range: "'barber'!A:K",
       auth,
     });
 
@@ -635,7 +637,8 @@ export const getDailyScheduleByBarber = async (barber, date, { fresco = false } 
           time: slot,
           status: 'ocupado',
           name: appointment[3] || '',
-          phone: appointment[4] || ''
+          phone: appointment[4] || '',
+          usuario: appointment[10] || ''
         };
       }
 
@@ -643,7 +646,8 @@ export const getDailyScheduleByBarber = async (barber, date, { fresco = false } 
         time: slot,
         status: 'libre',
         name: '',
-        phone: ''
+        phone: '',
+        usuario: ''
       };
     });
 
@@ -660,7 +664,8 @@ export const getDailyScheduleByBarber = async (barber, date, { fresco = false } 
           time: bookedTime,
           status: 'ocupado',
           name: appointment[3] || '',
-          phone: appointment[4] || ''
+          phone: appointment[4] || '',
+          usuario: appointment[10] || ''
         });
       }
     });
@@ -1312,6 +1317,7 @@ export const getAppointmentsByBarberAndDate = async (barber, date) => {
         phone: row[4] || '',
         barber: row[5] || '',
         status: row[6] || '',
+        usuario: row[10] || '',
       }))
       .sort((a, b) => slotToMinutes(a.time) - slotToMinutes(b.time));
 

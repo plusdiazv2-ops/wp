@@ -14,6 +14,8 @@ import {
   remitenteDe,
   telefonoVisible,
   SIN_NUMERO,
+  usuarioDe,
+  contactoVisible,
 } from '../src/config/contacto.js';
 
 import { conDestinatarioCorrecto } from '../src/services/httpRequest/sendToWhatsApp.js';
@@ -133,5 +135,36 @@ describe('cómo se le manda a Meta', () => {
     const data = { messaging_product: 'whatsapp', status: 'read', message_id: 'wamid.X' };
 
     assert.deepEqual(conDestinatarioCorrecto(data), data);
+  });
+});
+
+describe('el @usuario de WhatsApp (columna K)', () => {
+  const CODIGO = 'CO.1429929462353188';
+
+  test('se lee de contacts[].profile.username, sin la arroba', () => {
+    assert.equal(usuarioDe({ profile: { name: 'Ana', username: 'anagomez' } }), 'anagomez');
+    assert.equal(usuarioDe({ profile: { username: '@anagomez' } }), 'anagomez');
+  });
+
+  test('sin nombre de usuario, vacío (Meta ni manda el campo)', () => {
+    assert.equal(usuarioDe({ profile: { name: 'Ana' } }), '');
+    assert.equal(usuarioDe(undefined), '');
+  });
+
+  test('cliente con teléfono: se muestra el teléfono aunque tenga @usuario', () => {
+    // El teléfono sirve para llamar; el @usuario no aporta nada aquí.
+    assert.equal(contactoVisible('573001112233', 'anagomez'), '3001112233');
+  });
+
+  test('cliente que escondió su número y tiene @usuario: se muestra @usuario', () => {
+    assert.equal(contactoVisible(CODIGO, 'anagomez'), '@anagomez');
+  });
+
+  test('cliente sin número y sin @usuario conocido: como antes', () => {
+    assert.match(contactoVisible(CODIGO, ''), /sin número/);
+  });
+
+  test('una fila de bloqueo (sin teléfono ni usuario) sigue vacía', () => {
+    assert.equal(contactoVisible('', ''), '');
   });
 });
