@@ -607,3 +607,5 @@ la fecha correcta de Bogotá, especialmente entre 7pm y medianoche.
 - Cambios chiquitos, uno a la vez. Prefiero 5 commits pequeños que 1 grande.
 - Si algo se puede hacer de dos formas, dime las dos y déjame escoger.
 - Si no estás seguro de algo, pregúntame en vez de asumir.
+- **Después de cada cambio, actualiza `FASES-MEJORAS.md`**: qué se hizo, en
+  qué fase, la fecha, y los pendientes. Es el control del plan de mejoras.
