@@ -1,4 +1,5 @@
 import whatsappService from './whatsappService.js';
+import { nombreVisible } from '../config/barbers.js';
 import {
   getAppointmentsToRemind,
   markReminderAsSent,
@@ -68,7 +69,8 @@ class ReminderService {
             'recordatorio_turno',
             [
               appointment.name,
-              appointment.barber,
+              // El nombre que ve la gente ("Juli"), no el de la hoja ("Julian").
+              nombreVisible(appointment.barber),
               appointment.displayDate,
               appointment.time
             ]
