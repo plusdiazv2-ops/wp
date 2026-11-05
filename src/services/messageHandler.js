@@ -18,6 +18,28 @@ import { festivoDe } from '../config/festivos.js';
 import { remitenteDe, usuarioDe, contactoVisible } from '../config/contacto.js';
 import { puedeEntrar, adminsConBarberos, generarCodigo, mensajeCodigo } from './accesoPanel.js';
 import geminiAiService from './geminiAiService.js';
+import sendToWhatsApp from './httpRequest/sendToWhatsApp.js';
+import { formularioDisponible, mensajeFormulario } from './flowAgendar.js';
+
+// ============================================================
+// FORMULARIO DE AGENDAR (WhatsApp Flows) — Fase 2, noviembre 2026
+// ============================================================
+// En vez de 6–8 mensajes, el cliente llena una pantalla dentro de WhatsApp.
+// Lógica en services/flowAgendar.js; diseño en flows/agendar.json.
+//
+//   'prueba' → solo lo ven los números de TELEFONOS_PRUEBA_FORMULARIO.
+//   'todos'  → todos los clientes.
+//   false    → nadie: todos agendan con las listas de siempre.
+//
+// Sin FLOW_ID y FLOW_PRIVATE_KEY en Railway queda apagado diga lo que diga.
+// Escribir "lista" abre SIEMPRE el flujo de listas: es el respaldo para
+// WhatsApp viejos en los que el formulario no abre.
+//
+// FORMULARIO_BORRADOR: mientras el formulario no esté publicado en Meta solo
+// se puede abrir como borrador. Al publicarlo, pasarlo a false.
+const FORMULARIO_AGENDAR = 'prueba';
+const FORMULARIO_BORRADOR = true;
+const TELEFONOS_PRUEBA_FORMULARIO = ['573137127100'];
 
 class MessageHandler {
   constructor() {
@@ -589,6 +611,14 @@ class MessageHandler {
         return;
       }
 
+      // Respaldo del formulario: agendar con las listas de siempre.
+      if (incomingMessage === 'lista') {
+        this.clearAllStates(to);
+        await this.handleMenuOption(to, '1', { sinFormulario: true });
+        await whatsappService.markAsRead(message.id);
+        return;
+      }
+
       const admin = this.barberAdmins[to];
 
       if (admin && message.text.body.trim() === admin.password) {
@@ -687,6 +717,15 @@ class MessageHandler {
 
     } else if (message?.type === 'interactive') {
       const to = remitenteDe(message, senderInfo);
+
+      // El cliente cerró el formulario de agendar. El turno ya se guardó
+      // desde el formulario (flowAgendar.js): aquí no queda nada por hacer.
+      if (message.interactive?.type === 'nfm_reply') {
+        console.log(`📝 Formulario de agendar terminado por ${to}.`);
+        await whatsappService.markAsRead(message.id);
+        return;
+      }
+
       const option = this.getInteractiveId(message);
 
       // Sin id no se puede hacer nada, y dejarlo pasar rompía el panel del
@@ -843,8 +882,17 @@ class MessageHandler {
    * flujo porque ese se borra y se crea en varios pasos.
    */
   anotarUsuario(to, senderInfo) {
+    if (!to) return;
+
+    // El nombre del perfil, para dejarlo escrito en el formulario de agendar.
+    const nombre = String(senderInfo?.profile?.name || '').trim();
+    if (nombre) {
+      this.nombresWhatsApp ??= {};
+      this.nombresWhatsApp[to] = nombre;
+    }
+
     const usuario = usuarioDe(senderInfo);
-    if (!to || !usuario) return;
+    if (!usuario) return;
 
     this.usuariosWhatsApp ??= {};
     this.usuariosWhatsApp[to] = usuario;
@@ -882,13 +930,27 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
     await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
   }
 
-  async handleMenuOption(to, option) {
+  /** ¿A este cliente se le abre el formulario en vez de las listas? */
+  usaFormulario(to) {
+    if (!formularioDisponible()) return false;
+    if (FORMULARIO_AGENDAR === 'todos') return true;
+    if (FORMULARIO_AGENDAR === 'prueba') return TELEFONOS_PRUEBA_FORMULARIO.includes(to);
+    return false;
+  }
+
+  async handleMenuOption(to, option, { sinFormulario = false } = {}) {
     let response;
 
     switch (option) {
       case '1':
       case 'agendar turno':
         this.resetError(to);
+
+        if (!sinFormulario && this.usaFormulario(to)) {
+          await sendToWhatsApp(mensajeFormulario(to, this.nombresWhatsApp?.[to], { borrador: FORMULARIO_BORRADOR }));
+          break;
+        }
+
         this.appointmentState[to] = {
           step: 'name',
           lastActivity: Date.now()

@@ -1,0 +1,175 @@
+{
+  "version": "7.1",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "DATOS": ["FECHA"],
+    "FECHA": ["HORA", "DATOS"],
+    "HORA": ["LISTO", "FECHA"],
+    "LISTO": []
+  },
+  "screens": [
+    {
+      "id": "DATOS",
+      "title": "Agenda tu turno",
+      "data": {
+        "nombre_inicial": { "type": "string", "__example__": "Ana" },
+        "barberos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "title": { "type": "string" } }
+          },
+          "__example__": [ { "id": "Bolon", "title": "Bolon" }, { "id": "Julian", "title": "Juli" } ]
+        },
+        "aviso": { "type": "string", "__example__": "" },
+        "hay_aviso": { "type": "boolean", "__example__": false }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "${data.aviso}", "visible": "${data.hay_aviso}" },
+          {
+            "type": "TextInput",
+            "name": "nombre",
+            "label": "Tu nombre",
+            "input-type": "text",
+            "required": true,
+            "init-value": "${data.nombre_inicial}"
+          },
+          {
+            "type": "RadioButtonsGroup",
+            "name": "barbero",
+            "label": "Elige tu barbero",
+            "required": true,
+            "data-source": "${data.barberos}"
+          },
+          {
+            "type": "Footer",
+            "label": "Continuar",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": { "nombre": "${form.nombre}", "barbero": "${form.barbero}" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "FECHA",
+      "title": "Elige la fecha",
+      "data": {
+        "nombre": { "type": "string", "__example__": "Ana" },
+        "barbero": { "type": "string", "__example__": "Julian" },
+        "resumen": { "type": "string", "__example__": "💈 Juli" },
+        "fechas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "enabled": { "type": "boolean" }
+            }
+          },
+          "__example__": [
+            { "id": "2026-11-16", "title": "Lunes 16 de noviembre", "description": "🇨🇴 Festivo · 12 turnos libres", "enabled": true }
+          ]
+        },
+        "aviso": { "type": "string", "__example__": "" },
+        "hay_aviso": { "type": "boolean", "__example__": false }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "${data.resumen}" },
+          { "type": "TextBody", "text": "${data.aviso}", "visible": "${data.hay_aviso}" },
+          {
+            "type": "RadioButtonsGroup",
+            "name": "fecha",
+            "label": "Fecha",
+            "required": true,
+            "data-source": "${data.fechas}"
+          },
+          {
+            "type": "Footer",
+            "label": "Ver horas",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": { "nombre": "${data.nombre}", "barbero": "${data.barbero}", "fecha": "${form.fecha}" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "HORA",
+      "title": "Elige la hora",
+      "data": {
+        "nombre": { "type": "string", "__example__": "Ana" },
+        "barbero": { "type": "string", "__example__": "Julian" },
+        "fecha": { "type": "string", "__example__": "2026-11-16" },
+        "resumen": { "type": "string", "__example__": "💈 Juli · 📅 Lunes 16 de noviembre" },
+        "horas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "title": { "type": "string" } }
+          },
+          "__example__": [ { "id": "9:40am", "title": "9:40am" } ]
+        },
+        "aviso": { "type": "string", "__example__": "" },
+        "hay_aviso": { "type": "boolean", "__example__": false }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextSubheading", "text": "${data.resumen}" },
+          { "type": "TextBody", "text": "${data.aviso}", "visible": "${data.hay_aviso}" },
+          {
+            "type": "Dropdown",
+            "name": "hora",
+            "label": "Hora",
+            "required": true,
+            "data-source": "${data.horas}"
+          },
+          {
+            "type": "Footer",
+            "label": "Confirmar turno",
+            "on-click-action": {
+              "name": "data_exchange",
+              "payload": {
+                "nombre": "${data.nombre}",
+                "barbero": "${data.barbero}",
+                "fecha": "${data.fecha}",
+                "hora": "${form.hora}"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "LISTO",
+      "title": "Turno confirmado",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "resumen": { "type": "string", "__example__": "👤 Ana\n💈 Juli\n📅 Lunes 16 de noviembre\n⏰ 9:40am" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextHeading", "text": "✅ ¡Turno confirmado!" },
+          { "type": "TextBody", "text": "${data.resumen}" },
+          { "type": "TextBody", "text": "📌 Recuerda llegar 5 minutos antes. Te mandamos el resumen por el chat." },
+          {
+            "type": "Footer",
+            "label": "Listo",
+            "on-click-action": { "name": "complete", "payload": {} }
+          }
+        ]
+      }
+    }
+  ]
+}

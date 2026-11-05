@@ -48,6 +48,12 @@ export default {
   // app siga suscrita. No es secreto: sin el token no sirve de nada.
   WABA_ID: process.env.WABA_ID || '26475533715448133',
 
+  // Formulario de agendar (WhatsApp Flows). La llave privada es SECRETA y va
+  // solo en Railway; sin ella o sin FLOW_ID el formulario queda apagado y
+  // todos agendan con las listas de siempre.
+  FLOW_PRIVATE_KEY: process.env.FLOW_PRIVATE_KEY,
+  FLOW_ID: process.env.FLOW_ID,
+
   API_TOKEN: process.env.API_TOKEN,
   PORT: process.env.PORT,
   BUSINESS_PHONE: process.env.BUSINESS_PHONE,
