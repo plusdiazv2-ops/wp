@@ -91,7 +91,12 @@ Aprobado el 5 nov: pantallas nombre/barbero → fecha → hora → confirmar,
   re-registrado hace poco, cobros fallidos). Rastreo de Meta: `AFwEvDH1C1nxuyrfm6hj7-m`.
 - ✅ Respaldo: si Meta rechaza el formulario, el bot sigue con las listas. Los
   clientes no notan nada (además el formulario solo está encendido para el 3137127100).
-- ⏳ **Para destrabarlo:** verificar el negocio en Meta (Configuración del
+- ✅ **5 nov: formulario APAGADO también para el 3137127100** (decisión del dueño):
+  la barbería no está registrada (sin RUT ni Cámara de Comercio), así que no se
+  puede verificar el negocio por ahora. Todos agendan con las listas.
+  Prueba completa de todos los botones (agendar con Volver, 3 jornadas de
+  Bolón, menu, lista, cancelar, ubicación, panel del barbero): ✅ sin errores.
+- ⏳ **Para destrabarlo algún día:** sacar el RUT (gratis, DIAN) y verificar el negocio en Meta (Configuración del
   negocio → Centro de seguridad). Si sigue, caso a soporte de Meta con el 139000.
   Después: volver a probar desde el 3137127100 — no hay que programar nada más.
 - 🔜 Publicar el formulario y pasar a `'todos'` cuando el dueño diga.
@@ -156,7 +161,7 @@ frecuentes. Nunca escribe en la agenda. Permitido por la política de Meta de
 - [ ] Poner **`FLOW_ID`** = `1493138499295579` en Railway.
 - [ ] **Borrar del Escritorio** `FLOW_PRIVATE_KEY.txt` y `FLOW_PRIVATE_KEY_una_linea.txt`.
 - [ ] Poner **`META_APP_SECRET`** en Railway (hoy la firma del webhook está apagada).
-- [ ] **Verificar el negocio en Meta** — destraba el formulario (error 139000) y da más cupo de mensajes.
+- [ ] *(Opcional, sin prisa)* Sacar el RUT y **verificar el negocio en Meta** — destraba el formulario (error 139000) y da más cupo de mensajes.
 
 ## Datos útiles
 

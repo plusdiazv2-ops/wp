@@ -37,7 +37,10 @@ import { formularioDisponible, mensajeFormulario } from './flowAgendar.js';
 //
 // FORMULARIO_BORRADOR: mientras el formulario no esté publicado en Meta solo
 // se puede abrir como borrador. Al publicarlo, pasarlo a false.
-const FORMULARIO_AGENDAR = 'prueba';
+// ⏸️ Apagado desde el 5 nov 2026: Meta bloquea los Flows de esta cuenta
+// (error 139000 "Blocked by Integrity") hasta que se verifique el negocio.
+// Cuando se destrabe: volver a 'prueba' y probar desde el 3137127100.
+const FORMULARIO_AGENDAR = false;
 const FORMULARIO_BORRADOR = true;
 const TELEFONOS_PRUEBA_FORMULARIO = ['573137127100'];
 
