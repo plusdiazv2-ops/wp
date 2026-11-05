@@ -461,6 +461,9 @@ la hoja: con la C vacía, ese número vería todo.
 | `SESION_SECRETO` | El panel funciona, pero cada despliegue cierra las sesiones |
 | `META_APP_SECRET` | La firma del webhook queda **apagada** |
 | `SPREADSHEET_ID` · `URL_PUBLICA` | Llevan valor por defecto |
+| `RESEND_API_KEY` | Las alertas salen solo por WhatsApp (ver abajo) |
+| `ALERTA_CORREO` · `ALERTA_WHATSAPP` · `WABA_ID` | Llevan valor por defecto (los del desarrollador) |
+| `TAREAS_FONDO` | Opcional: `encendidas` / `apagadas` fuerza la traba (ver abajo) |
 
 Ninguna tumba el bot al faltar, a propósito: todas avisan en los logs al
 arrancar en vez de fallar en silencio.
@@ -484,6 +487,36 @@ recordatorios. Si tocas esa ventana, revisa la frecuencia del cron.
 
 Hoy el cron corre **cada 5 minutos** (`app.js`, `cron.schedule('*/5 * * * *')`).
 La regla se cumple con margen.
+
+⚠️ **Que Meta acepte el envío no significa que llegue.** El rechazo puede
+venir segundos después por el webhook (así pasó con el 131042 de noviembre de
+2026: un cobro fallido a la tarjeta bloqueó TODAS las plantillas por días, y
+la hoja decía "Sí"). Desde entonces `reminderService` recuerda qué mensaje va
+con qué fila y, si Meta lo rechaza, la J vuelve a `No` (releyendo la fila
+antes de escribir). El cron lo reintenta si sigue dentro de la ventana.
+
+## Fallos silenciosos: alertas, vigilancia y `/salud` (Fase 0, nov 2026)
+
+Lo que más daño ha hecho aquí no son los errores que se ven, sino los que
+no: el dominio que cambió (agosto) y el cobro fallido de Meta (noviembre).
+
+- **`services/alertas.js`** — avisa al desarrollador por **correo (Resend)** y
+  por **WhatsApp**. El correo va por HTTPS porque **Railway bloquea SMTP** en
+  este plan; sin dominio propio, Resend solo manda al dueño de la cuenta.
+  El WhatsApp solo llega si ese número le escribió al bot en 24 horas.
+  **Freno: la misma alerta, una vez cada 6 horas.**
+- **Webhook** — cada estado `failed` de Meta dispara una alerta (con el
+  código y qué hacer), salvo que el mensaje fallido sea una alerta.
+- **`services/vigilancia.js`** — cada 15 min: número `CONNECTED`, alguna app
+  suscrita al WABA, y que llegue algo al webhook (4 h de silencio de lunes a
+  sábado, 10am–7pm, es alerta). Si no se pudo consultar a Meta, **no** alerta.
+- **`/salud`** — 200 o 503 con la última revisión, sin detalles (es pública)
+  y sin consultar a Meta en cada visita. Para un monitor externo (UptimeRobot).
+- 🔒 **Traba de tareas de fondo** (`app.js`) — recordatorios y vigilancia corren
+  **solo en Railway** (se reconoce por sus variables `RAILWAY_*`). Una copia
+  local con el `.env` de producción no manda nada. Se fuerza con `TAREAS_FONDO`.
+  ⚠️ **Si en producción `/salud` dice `"revisado": null`, las tareas NO están
+  corriendo: no hay recordatorios.**
 
 ## Webhook de Meta
 
