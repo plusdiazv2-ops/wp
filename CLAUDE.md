@@ -319,6 +319,11 @@ En vez de 6–8 mensajes, una pantalla dentro de WhatsApp: **DATOS** (nombre y
 barbero) → **FECHA** → **HORA** → **LISTO**. Desde octubre de 2026 Meta cobra
 los mensajes normales pasado el cupo de 1.000 al mes: esto ahorra plata.
 
+- ⏸️ **HOY ESTÁ APAGADO (`false`) desde el 5 nov 2026.** Meta bloquea los
+  Flows de esta cuenta con el error **139000 «Blocked by Integrity»**: falta
+  verificar el negocio, y la barbería no está registrada (sin RUT ni Cámara de
+  Comercio). Todo el código y el formulario en Meta (id `1493138499295579`,
+  borrador) quedan listos: si algún día se verifica, volver a `'prueba'`.
 - **Interruptor** arriba de `messageHandler.js`: `FORMULARIO_AGENDAR` =
   `'prueba'` (solo `TELEFONOS_PRUEBA_FORMULARIO`) · `'todos'` · `false`.
   `FORMULARIO_BORRADOR = true` mientras el formulario no esté publicado en Meta.
