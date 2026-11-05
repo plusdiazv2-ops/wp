@@ -401,3 +401,12 @@ thead th.es-pasado { opacity: 0.5; }
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* "Bloquear festivo": el mismo botón, resaltado para que se vea de una. */
+.dia__accion--festivo {
+  border-color: #e0a86a;
+  background: rgba(224, 168, 106, 0.16);
+  color: #e0a86a;
+  font-weight: 600;
+}
+.dia__accion--festivo:hover { background: #e0a86a; color: #1a1410; }

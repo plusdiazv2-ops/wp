@@ -290,7 +290,11 @@ function botonesDelDia(dia, horas) {
   const datos = `data-fecha="${dia.fecha}" data-nombre="${dia.corto} ${dia.numero}"`;
 
   return `<span class="dia__acciones">
-    ${libres.length ? `<button type="button" class="dia__accion" data-dia="bloquear" ${datos}>Bloquear día</button>` : ''}
+    ${libres.length ? (dia.festivo
+      // En un festivo el botón se resalta: es cuando más se usa, y el barbero
+      // decide si trabaja o no. Hace exactamente lo mismo que "Bloquear día".
+      ? `<button type="button" class="dia__accion dia__accion--festivo" data-dia="bloquear" ${datos}>Bloquear festivo</button>`
+      : `<button type="button" class="dia__accion" data-dia="bloquear" ${datos}>Bloquear día</button>`) : ''}
     ${bloqueadas.length ? `<button type="button" class="dia__accion" data-dia="desbloquear" ${datos}>Liberar día</button>` : ''}
   </span>`;
 }
