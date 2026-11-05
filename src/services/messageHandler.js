@@ -947,8 +947,15 @@ Estoy aquí para ayudarte a agendar tu turno de forma rápida y sencilla ✂️`
         this.resetError(to);
 
         if (!sinFormulario && this.usaFormulario(to)) {
-          await sendToWhatsApp(mensajeFormulario(to, this.nombresWhatsApp?.[to], { borrador: FORMULARIO_BORRADOR }));
-          break;
+          try {
+            await sendToWhatsApp(mensajeFormulario(to, this.nombresWhatsApp?.[to], { borrador: FORMULARIO_BORRADOR }));
+            break;
+          } catch (error) {
+            // Si Meta rechaza el formulario, el cliente NO se queda sin
+            // respuesta: sigue con las listas de siempre, aquí abajo.
+            console.error('📝 Formulario: Meta no lo aceptó, se sigue con las listas:',
+              JSON.stringify(error?.response?.data?.error || error?.message));
+          }
         }
 
         this.appointmentState[to] = {
