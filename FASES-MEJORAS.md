@@ -3,7 +3,7 @@
 > Control de las mejoras del bot. **Se actualiza con cada cambio.**
 > Detalle técnico de cada cosa: `CLAUDE.md`. Historia completa: `git log`.
 >
-> Última actualización: **5 de noviembre de 2026** (Fase 2 en pausa por Meta)
+> Última actualización: **6 de noviembre de 2026**
 
 ## Resumen
 
@@ -28,7 +28,8 @@ Leyenda: ✅ hecho · ⏳ en curso o esperando algo · ⏸️ en pausa · 🔜 p
 | 28 oct | ✅ Bloquear día, Liberar día y Seleccionar varios en la agenda |
 | 28 oct | ✅ Arreglado el botón ⟳ Actualizar de la agenda (no funcionaba) |
 | 4 nov | ✅ Resuelto: Meta bloqueaba las plantillas por un cobro fallido a la tarjeta (código 131042). Se pagó Exclusive y Alta Gama |
-| 4 nov | ✅ Barbero de prueba **encendido** (se queda así mientras haya pruebas) |
+| 4 nov | ✅ Barbero de prueba **encendido** para las pruebas |
+| 6 nov | ✅ Barbero de prueba **apagado**: los clientes ya no lo ven |
 
 ---
 
@@ -156,7 +157,7 @@ frecuentes. Nunca escribe en la agenda. Permitido por la política de Meta de
 - [ ] Título **`Usuario`** en la celda **K1** de la pestaña `barber`, si no está.
 - [ ] Escribirle «hola» al bot desde el 3137127100 de vez en cuando
       (las alertas por WhatsApp solo llegan dentro de 24 h).
-- [ ] **Apagar el barbero de prueba** cuando terminen las pruebas (los clientes lo ven).
+- [x] ~~Apagar el barbero de prueba~~ — apagado el 6 nov.
 - [ ] Mirar el gasto en **Administrador de WhatsApp → Estadísticas** para decidir la Fase 2.
 - [ ] Poner **`FLOW_ID`** = `1493138499295579` en Railway.
 - [ ] **Borrar del Escritorio** `FLOW_PRIVATE_KEY.txt` y `FLOW_PRIVATE_KEY_una_linea.txt`.
