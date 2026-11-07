@@ -132,7 +132,7 @@ class MessageHandler {
     // Su horario se queda en config/barbers.js y no estorba: sin este
     // interruptor nadie puede llegar a él.
     // ============================================================
-    this.testBarberEnabled = true;
+    this.testBarberEnabled = false;
 
     if (this.testBarberEnabled) {
       const TEST_PHONE = "573137127100";
